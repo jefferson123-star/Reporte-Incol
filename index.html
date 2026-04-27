@@ -171,7 +171,7 @@
   </div>
   <div class="tbl-wrap">
     <table>
-      <thead><tr><th>Fecha</th><th>Proyecto</th><th>Tipo</th><th>Alcance</th><th>Resultados</th><th>Impresiones</th><th>Frec. prom.</th><th>Inversión</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Proyecto</th><th>Tipo</th><th>Alcance</th><th>Resultados</th><th>Impresiones</th><th>Frec. prom.</th><th>Inversión</th><th>Costo/resultado</th></tr></thead>
       <tbody id="d-tbl"></tbody>
     </table>
   </div>
@@ -396,7 +396,7 @@ function renderDia(){
   const avgCosto = allCostos.length ? allCostos.reduce((a,b)=>a+b,0)/allCostos.length : 0;
 
   const inv_total = data.reduce((s,d)=>s+d.gasto,0);
-  const cpl_d = leads>0?Math.round(inv_total/leads):0;
+  const cpl_d = (leads+wa)>0?Math.round(inv_total/(leads+wa)):0;
   const alcance_d = data.reduce((s,d)=>s+d.alcance,0);
   document.getElementById('d-kpis').innerHTML = `
     <div class="kpi"><div class="kpi-label">💰 Inv. total</div><div class="kpi-val">${fmtCOP(inv_total)}</div><div class="kpi-sub">COP gastado</div></div>
@@ -493,6 +493,7 @@ function renderDia(){
           <td class="mono">${fmt(imp)}</td>
           <td class="mono">${avgFr}</td>
           <td class="mono">${fmtCOP(inv)}</td>
+          <td class="mono">${res>0?fmtCOP(Math.round(inv/res)):'—'}</td>
         </tr>`);
       });
     });
@@ -521,7 +522,7 @@ function renderSemana(){
   const truplay=data.filter(d=>d.metrica==='truplay').reduce((s,d)=>s+d.resultados,0);
   const imp=data.reduce((s,d)=>s+d.impresiones,0);
   const s_inv = data.reduce((s,d)=>s+d.gasto,0);
-  const s_cpl = leads>0?Math.round(s_inv/leads):0;
+  const s_cpl = (leads+wa)>0?Math.round(s_inv/(leads+wa)):0;
   const s_alcance = data.reduce((s,d)=>s+d.alcance,0);
 
   document.getElementById('s-kpis').innerHTML = `
@@ -625,7 +626,7 @@ function renderMes(){
   const imp_total = data.reduce((s,d)=>s+d.impresiones,0);
   const inv_total = data.reduce((s,d)=>s+d.gasto,0);
   const alc_total = data.reduce((s,d)=>s+d.alcance,0);
-  const cpl_total = leads_total>0?Math.round(inv_total/leads_total):0;
+  const cpl_total = (leads_total+wa_total)>0?Math.round(inv_total/(leads_total+wa_total)):0;
 
   const globalEl = document.getElementById('m-kpis-global');
   if(globalEl) globalEl.innerHTML = `
@@ -644,7 +645,7 @@ function renderMes(){
     const leads=pdata.filter(d=>d.metrica==='leads'&&metFilter.includes('leads')).reduce((s,d)=>s+d.resultados,0);
     const truplay=pdata.filter(d=>d.metrica==='truplay'&&metFilter.includes('truplay')).reduce((s,d)=>s+d.resultados,0);
     const inv=pdata.reduce((s,d)=>s+d.gasto,0);
-    const cpl=leads>0?inv/leads:0;
+    const cpl=(leads+wa)>0?inv/(leads+wa):0;
     const alc=pdata.reduce((s,d)=>s+d.alcance,0);
     return `<div class="kpi" style="border-top:3px solid ${PROJ_COLORS[p]}">
       <div class="kpi-label" style="color:${PROJ_COLORS[p]}">${p}</div>
@@ -707,8 +708,8 @@ function renderMes(){
     const alc_r = prows.reduce((s,d)=>s+d.alcance,0);
     const frecs = prows.filter(d=>d.frecuencia>0).map(d=>d.frecuencia);
     const avgFr = frecs.length?frecs.reduce((a,b)=>a+b,0)/frecs.length:0;
-    const costos = prows.filter(d=>d.costo>0&&['leads','whatsapp'].includes(d.metrica)).map(d=>d.costo);
-    const avgC = costos.length?costos.reduce((a,b)=>a+b,0)/costos.length:0;
+    const total_res_m = leads_r + wa_r;
+    const avgC = total_res_m>0 ? Math.round(inv_r/total_res_m) : 0;
     return `<tr><td><b>${p}</b></td>
       <td>${metBadge('leads')} ${fmt(leads_r)} · ${metBadge('whatsapp')} ${fmt(wa_r)}</td>
       <td class="mono">${fmtCOP(inv_r)}</td><td class="mono">${fmt(alc_r)}</td>
@@ -781,8 +782,10 @@ function renderComp(){
   const costoDs = projsInView.map(p=>({
     label:p,
     data:labels.map(l=>{
-      const rows=data.filter(d=>getGroup(d)===l&&d.proyecto===p&&metFilter.includes(d.metrica)&&d.costo>0);
-      return rows.length?Math.round(rows.reduce((s,d)=>s+d.costo,0)/rows.length):null;
+      const rows=data.filter(d=>getGroup(d)===l&&d.proyecto===p&&metFilter.includes(d.metrica));
+      const r_res=rows.reduce((s,d)=>s+d.resultados,0);
+      const r_inv=rows.reduce((s,d)=>s+d.gasto,0);
+      return r_res>0?Math.round(r_inv/r_res):null;
     }),
     borderColor:PROJ_COLORS[p], backgroundColor:PROJ_COLORS[p]+'22',
     tension:0.3, fill:false, spanGaps:true, pointRadius:5, pointBackgroundColor:PROJ_COLORS[p]
@@ -794,8 +797,8 @@ function renderComp(){
   }});
 
   // Tabla
-  document.getElementById('c-thead').innerHTML = `<tr><th>Proyecto</th>${labels.map(l=>`<th colspan="2">${l}</th>`).join('')}<th>Total CP</th><th>Total WA</th></tr>
-    <tr><th></th>${labels.map(()=>'<th>CP</th><th>WA</th>').join('')}<th></th><th></th></tr>`;
+  document.getElementById('c-thead').innerHTML = `<tr><th>Proyecto</th>${labels.map(l=>`<th colspan="2">${l}</th>`).join('')}<th>Total CP</th><th>Total WA</th><th>Total</th></tr>
+    <tr><th></th>${labels.map(()=>'<th>CP</th><th>WA</th>').join('')}<th></th><th></th><th></th></tr>`;
 
   document.getElementById('c-tbody').innerHTML = projsInView.map(p=>{
     const cells = labels.map(l=>{
@@ -805,7 +808,8 @@ function renderComp(){
     }).join('');
     const totalCP=data.filter(d=>d.proyecto===p&&d.metrica==='leads').reduce((s,d)=>s+d.resultados,0);
     const totalWA=data.filter(d=>d.proyecto===p&&d.metrica==='whatsapp').reduce((s,d)=>s+d.resultados,0);
-    return `<tr><td><b style="color:${PROJ_COLORS[p]}">${p}</b></td>${cells}<td class="mono"><b>${fmt(totalCP)}</b></td><td class="mono"><b>${fmt(totalWA)}</b></td></tr>`;
+    const totalAll=totalCP+totalWA;
+    return `<tr><td><b style="color:${PROJ_COLORS[p]}">${p}</b></td>${cells}<td class="mono"><b>${fmt(totalCP)}</b></td><td class="mono"><b>${fmt(totalWA)}</b></td><td class="mono" style="background:#f5f5f3;font-weight:700;color:var(--text)">${fmt(totalAll)}</td></tr>`;
   }).join('');
 }
 
