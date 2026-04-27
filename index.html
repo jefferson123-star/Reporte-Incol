@@ -597,11 +597,13 @@ function renderSemana(){
       const alc_s=rows.reduce((s,d)=>s+d.alcance,0);
       const frecs=rows.filter(d=>d.frecuencia>0).map(d=>d.frecuencia);
       const avgFr=frecs.length?frecs.reduce((a,b)=>a+b,0)/frecs.length:0;
+      const total_res_s = leads_r + wa_r;
+      const costo_s = total_res_s>0 ? Math.round(inv_s/total_res_s) : 0;
       return `<tr><td>${WEEKS[wi]}</td><td><b>${p}</b></td>
         <td>${metBadge('leads')} ${fmt(leads_r)} · ${metBadge('whatsapp')} ${fmt(wa_r)}</td>
         <td class="mono">${fmtCOP(inv_s)}</td><td class="mono">${fmt(alc_s)}</td>
-        <td class="mono">${fmt(leads_r+wa_r)}</td><td class="mono">${fmt(imp)}</td>
-        <td class="mono">${avgFr.toFixed(2)}</td><td class="mono">—</td></tr>`;
+        <td class="mono">${fmt(total_res_s)}</td><td class="mono">${fmt(imp)}</td>
+        <td class="mono">${avgFr.toFixed(2)}</td><td class="mono">${costo_s>0?fmtCOP(costo_s):'—'}</td></tr>`;
     })
   ).join('');
 }
