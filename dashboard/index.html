@@ -61,6 +61,19 @@ main{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding-block:18p
 .tile{background:var(--panel-2);border-radius:8px;padding:11px 13px;border-left:3px solid var(--s);min-width:0}
 .tile .v{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:3px}
 .tile .h{font-size:11.5px;color:var(--muted);margin-top:2px}
+.an-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.an-head .sec-tag{margin-bottom:0}
+.linkbtn{border:0;background:none;padding:4px 0;font-size:12px;font-weight:600;color:var(--ink);border-radius:4px}
+.an-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:14px}
+.an-col{background:var(--panel-2);border-radius:8px;padding:12px 14px 14px;border-left:3px solid var(--c);display:grid;gap:7px;align-content:start;min-width:0;line-height:1.55}
+.an-col .lbl{font-size:9.5px}
+.an-col h3{margin:0;font-size:14.5px;font-weight:700}
+.an-col p{margin:0}
+.an-col ul{margin:0;padding-left:18px;display:grid;gap:5px}
+.an-st{font-size:16px;font-weight:700}
+.an-st.ok{color:var(--ok)}.an-st.warn{color:var(--warn)}.an-st.bad{color:var(--bad)}.an-st.mute{color:var(--muted)}
+.an-kv{display:grid;gap:1px}.an-kv strong{font-variant-numeric:tabular-nums;font-size:13.5px}
+.an-sep{border-top:1px solid var(--line);padding-top:9px;margin-top:2px;display:grid;gap:5px}
 .analysis{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
 .box{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:8px;align-content:start;min-width:0}
 .box h3{margin:0;font-size:16px;font-weight:700;text-wrap:balance}
@@ -354,34 +367,45 @@ function diagnose(a){
   if(a.conv!=null)f.push({k:"Tasa conversión formulario",v:pct(a.conv),s:a.conv>=20?"ok":a.conv>=10?"warn":"bad",t:a.conv>=20?"saludable":a.conv>=10?"baja":"muy baja"});
   if(a.p3s!=null)f.push({k:"% Reprod. 3 seg",v:pct(a.p3s),s:a.p3s>=25?"ok":a.p3s>=15?"warn":"bad",t:a.p3s>=25?"saludable":"baja"});
   if(a.freq!=null)f.push({k:"Frecuencia",v:dec(a.freq),s:a.freq<=2.5?"ok":a.freq<=3.5?"warn":"bad",t:a.freq<=2.5?"saludable":a.freq<=3.5?"vigilar":"alta"});
-  let head,text,todo,actions;
+  const pr=[];
+  if(a.ctr!=null)pr.push(`el CTR único está en ${pct(a.ctr)}, ${a.ctr>=1.5?"por encima del umbral saludable (1%–1,5%)":a.ctr>=1?"dentro del umbral (1%–1,5%)":"por debajo del umbral saludable (1%–1,5%)"}`);
+  if(a.conv!=null)pr.push(`la tasa de conversión del formulario es ${pct(a.conv)}, ${a.conv>=20?"en el rango 20%–30%":"baja frente al rango 20%–30%"}`);
+  if(a.freq!=null)pr.push(`la frecuencia es ${dec(a.freq)}, ${a.freq<=2.5?"adecuada":a.freq<=3.5?"para vigilar":"alta"}`);
+  if(a.p3s!=null)pr.push(`la reproducción a 3 s es ${pct(a.p3s)}, ${a.p3s>=25?"en rango":"baja"}`);
+  const prose=pr.map((x,i)=>(i?x.charAt(0).toUpperCase()+x.slice(1):x)).join(". ")+(pr.length?".":"");
+  let head,text,todo,actions,todoText;
   if(a.ctr!=null&&a.ctr<1){
     head="El anuncio no está generando clics";
     text=`El CTR único está en ${pct(a.ctr)}, por debajo del umbral saludable (1%–1,5%). El problema está antes del clic: creativo, gancho o público.`;
     todo="Renueva creativos antes de subir presupuesto";
+    todoText=`El CTR único (${pct(a.ctr)}) está bajo: el anuncio no detiene a la audiencia. Cambia el creativo antes de invertir más.`;
     actions=["Probar nuevos ganchos en los primeros 3 segundos (precio desde, ubicación, metraje)","Rotar formatos: video corto, carrusel de planos, recorrido","Revisar que el público no sea demasiado amplio o frío"];
   }else if(a.conv!=null&&a.conv<20){
     head=a.ctr!=null?"Buen CTR; el cuello está en el formulario":"El cuello está en el formulario";
     text=`La tasa de conversión del formulario es ${pct(a.conv)}, baja frente al rango 20%–30%.${a.ctr!=null?` El CTR único (${pct(a.ctr)}) sí atrae clics.`:""}`;
     todo="Optimiza el formulario y el destino";
+    todoText=`${a.ctr!=null?`El CTR único (${pct(a.ctr)}) atrae clics, pero l`:"L"}a conversión del formulario (${pct(a.conv)}) está por debajo del rango 20%–30%. Prioriza el post-clic antes de subir presupuesto.`;
     actions=["Simplificar campos y fricción del formulario","Revisar claridad de la oferta (precio, subsidio, entrega)","Probar CTA y prueba social en el formulario"];
   }else if(a.freq!=null&&a.freq>3.5){
     head="El público se está saturando";
     text=`La frecuencia va en ${dec(a.freq)}: las mismas personas ven el anuncio demasiadas veces y el costo tiende a subir.`;
     todo="Refresca creativos o amplía públicos";
+    todoText=`Con frecuencia de ${dec(a.freq)} el costo por resultado tiende a subir. Renueva piezas antes de escalar.`;
     actions=["Subir 2–3 creativos nuevos en los conjuntos ganadores","Ampliar edad o intereses en el conjunto más saturado","Excluir a quienes ya enviaron formulario"];
   }else if(a.p3s!=null&&a.p3s<25){
     head="Los videos no retienen";
     text=`Solo el ${pct(a.p3s)} de las impresiones llega a 3 segundos de video. El gancho inicial no está deteniendo el scroll.`;
     todo="Trabaja el gancho de los primeros 3 segundos";
+    todoText=`Solo el ${pct(a.p3s)} llega a 3 segundos. Mejorar el inicio del video sube el CTR y baja el costo.`;
     actions=["Abrir con el dato más fuerte (precio, ubicación, entrega)","Texto grande en pantalla desde el segundo 0","Probar versiones de 6–10 s"];
   }else{
     head="Las métricas están sanas";
     text="CTR, conversión y frecuencia están en rango. Hay espacio para escalar los conjuntos con mejor costo por resultado.";
     todo="Escala lo que funciona";
+    todoText="Las métricas están en rango. Sube presupuesto de forma gradual en los conjuntos con menor costo por resultado.";
     actions=["Subir 15%–20% el presupuesto de los conjuntos ganadores cada 2–3 días","Duplicar el mejor conjunto con un creativo nuevo","Mantener 20%–30% del presupuesto para pruebas"];
   }
-  return {flags:f,head,text,todo,actions};
+  return {flags:f,head,text,todo,actions,todoText,prose};
 }
 function adsetTable(rows,bud){
   const g={};
@@ -505,33 +529,39 @@ function render(){
     ${best.length?`<div style="margin-top:16px"><div class="lbl" style="margin-bottom:8px">Mejores conjuntos (menor costo por lead)</div><div class="metrics">${best.map((b,i)=>`<div class="tile" style="--s:var(--accent)"><div class="lbl">${i+1} · ${esc(projName(b.project))}</div><div style="font-weight:700;margin-top:3px">${esc(b.adset)}</div><div class="h">${esc(b.campaign)}</div><div class="h">${int(b.a.results)} leads · CPL ${money(b.a.cpl)}</div></div>`).join("")}</div></div>`:""}
   </section>
 
-  <section class="card ai" aria-labelledby="hAi">
-    <div class="ai-head"><div class="sec-tag" id="hAi">ANÁLISIS Y RECOMENDACIONES</div>${state.canWrite?`<button type="button" id="btnAi">Editar análisis</button>`:""}</div>
-    ${aiHTML(month,proj)}
-  </section>
-
   <section class="card" aria-labelledby="hAn">
-    <div class="sec-tag" id="hAn">DIAGNÓSTICO AUTOMÁTICO</div>
-    <div class="analysis">
-      <div class="box"><div class="lbl">Costo objetivo</div><span class="pill ${cplState.c}">${cplState.t}</span>
-        <div class="kv"><span>Gasto</span><span>${money(a.spend)}</span></div>
-        <div class="kv"><span>Resultados</span><span>${int(a.results)}</span></div>
-        <div class="kv"><span>CPL</span><span>${money(a.cpl)}${bud.cplTarget?` vs obj. ${money(bud.cplTarget)}`:""}</span></div>
+    <div class="an-head"><div class="sec-tag" id="hAn">ANÁLISIS</div><button type="button" class="linkbtn" id="anToggle">${state.anHidden?"Mostrar":"Ocultar"}</button></div>
+    <div class="an-grid" ${state.anHidden?"hidden":""}>
+      <div class="an-col" style="--c:var(--bad)">
+        <div class="lbl">Costo objetivo</div>
+        <div class="an-st ${cplState.c}">${cplState.t}</div>
+        <div class="an-kv"><span class="lbl">Gasto</span><strong>${money(a.spend)}</strong></div>
+        <div class="an-kv"><span class="lbl">Resultados</span><strong>${int(a.results)} ${a.msgs?"resultados":"leads"}</strong></div>
+        <div class="an-kv"><span class="lbl">CPL</span><strong>${money(a.cpl)}${bud.cplTarget?` vs obj. ${money(bud.cplTarget)}`:""}</strong></div>
+        <div class="an-sep"><div class="lbl">Ritmo del mes</div>
+          ${bud.goal?`<p>A día ${day}/${D} deberían ir ~${int(expected)}; van ${int(a.results)}.</p>${a.results<expected?`<p>Faltan ${int(expected-a.results)} al ritmo.</p>`:`<p>Al día con el ritmo.</p>`}<p>Proyección a fin de mes: ~${int(projected)} vs meta ${int(bud.goal)}.</p>`
+          :`<p>Proyección a fin de mes: ~${int(projected)} resultados con ${money(spendProj)} de inversión.</p><p class="muted">Sin meta registrada.</p>`}
+        </div>
       </div>
-      <div class="box"><div class="lbl">Ritmo del mes</div>
-        ${bud.goal?`<span class="pill ${a.results>=expected?"ok":projected>=bud.goal*0.9?"warn":"bad"}">${a.results>=expected?"Al día":"Atrasado"}</span>
-        <div>A día ${day}/${D} deberían ir ~${int(expected)}; van ${int(a.results)}.</div>
-        ${a.results<expected?`<div><strong>Faltan ${int(expected-a.results)} al ritmo.</strong></div>`:""}
-        <div class="muted">Proyección a fin de mes: ~${int(projected)} vs meta ${int(bud.goal)}.</div>`
-        :`<span class="pill mute">Sin meta</span><div>Proyección a fin de mes al ritmo actual: ~${int(projected)} resultados con ${money(spendProj)} de inversión.</div><div class="muted">Registra presupuesto y meta para medir el ritmo.</div>`}
+      <div class="an-col" style="--c:var(--s6)">
+        <div class="lbl">¿Qué está pasando?</div>
+        <h3>${esc(dg.head)}</h3>
+        <p>${esc(proj==="all"?"Todos los proyectos":projName(proj))}: ${esc(dg.prose)}</p>
+        <ul>${dg.flags.map(f=>`<li>${esc(f.k)}: ${f.v} (${f.t})</li>`).join("")}</ul>
       </div>
-      <div class="box"><div class="lbl">¿Qué está pasando?</div><h3>${esc(dg.head)}</h3><div>${esc(dg.text)}</div>
-        ${dg.flags.map(f=>`<div class="kv"><span>${esc(f.k)}</span><span><span class="pill ${f.s}">${f.v} · ${f.t}</span></span></div>`).join("")}
-      </div>
-      <div class="box"><div class="lbl">¿Qué hacer?</div><h3>${esc(dg.todo)}</h3><ul>${dg.actions.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-        ${at.list.filter(x=>x.rec==="Pausar").length?`<div class="muted">Hay ${at.list.filter(x=>x.rec==="Pausar").length} conjunto(s) para pausar y ${at.list.filter(x=>x.rec==="Escalar").length} para escalar: mira la tabla de conjuntos.</div>`:""}
+      <div class="an-col" style="--c:var(--ok)">
+        <div class="lbl">¿Qué hacer?</div>
+        <h3>${esc(dg.todo)}</h3>
+        <p>${esc(dg.todoText)}</p>
+        <ul>${dg.actions.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+        ${at.list.filter(x=>x.rec==="Pausar"||x.rec==="Escalar").length?`<p class="muted">${at.list.filter(x=>x.rec==="Escalar").length} conjunto(s) para escalar y ${at.list.filter(x=>x.rec==="Pausar").length} para pausar: mira la tabla de conjuntos.</p>`:""}
       </div>
     </div>
+  </section>
+
+  <section class="card" aria-labelledby="hAi">
+    <div class="an-head"><div class="sec-tag" id="hAi">RECOMENDACIONES</div>${state.canWrite?`<button type="button" class="linkbtn" id="btnAi">Editar</button>`:""}</div>
+    ${aiHTML(month,proj)}
   </section>
 
   <div class="two">
@@ -580,6 +610,7 @@ function render(){
     </tbody></table></div>
   </section>
   ${reportsListHTML()}`;
+  $("anToggle").onclick=()=>{state.anHidden=!state.anHidden;render();};
   if($("btnAi"))$("btnAi").onclick=openAi;
   body.querySelectorAll("[data-proj]").forEach(el=>el.onclick=e=>{e.preventDefault();state.proj=el.dataset.proj;render();window.scrollTo({top:0,behavior:"smooth"});});
   bindReportList();
@@ -601,8 +632,11 @@ function md(t){
 }
 function aiHTML(month,proj){
   const a=state.analyses[month+"_"+proj];
-  if(!a||!a.text)return `<p class="muted">Todavía no hay análisis para ${esc(proj==="all"?"Incol":projName(proj))} en ${esc(monthLabel(month))}.${state.canWrite?" Usa “Editar análisis” para pegarlo.":""}</p>`;
-  return md(a.text)+(a.date?`<div class="src">Actualizado el ${esc(a.date)}</div>`:"");
+  if(!a||!a.text)return `<p class="muted" style="margin:12px 0 0">Todavía no hay análisis para ${esc(proj==="all"?"Incol":projName(proj))} en ${esc(monthLabel(month))}.${state.canWrite?" Usa “Editar análisis” para pegarlo.":""}</p>`;
+  const secs=[];let cur=null;
+  for(const l of String(a.text).split("\n")){const m=l.trim().match(/^#{1,4}\s+(.*)/);if(m){cur={t:m[1],b:[]};secs.push(cur);}else{if(!cur){cur={t:"",b:[]};secs.push(cur);}cur.b.push(l);}}
+  const cols=["var(--ok)","var(--bad)","var(--s6)","var(--s4)","var(--s3)"];
+  return `<div class="an-grid">${secs.filter(x=>x.t||x.b.join("").trim()).map((x,i)=>`<div class="an-col" style="--c:${cols[i%cols.length]}">${x.t?`<h3>${esc(x.t.replace(/^\d+\.\s*/,""))}</h3>`:""}${md(x.b.join("\n"))}</div>`).join("")}</div>`+(a.date?`<div class="src" style="font-size:12px;color:var(--muted);margin-top:10px">Actualizado el ${esc(a.date)}</div>`:"");
 }
 function openAi(){
   const k=state.month+"_"+state.proj;const a=state.analyses[k]||{};
