@@ -807,6 +807,59 @@
      "repEnd": "2026-10-18"
     }
    ]
+  },
+  "2026-10_mirador": {
+   "month": "2026-10",
+   "project": "mirador",
+   "platform": "meta",
+   "fileName": "CLIENTES-POTENCIALES (2).xlsx",
+   "uploadedAt": "2026-10-19T03:15:41.000Z",
+   "repStart": "2026-10-01",
+   "repEnd": "2026-10-18",
+   "rows": [
+    {
+     "campaign": "CP /MIRADOR DEL PERDOMO/ IMAGEN VIDEOS",
+     "adset": "MIRADOR DEL PERDOMO P.P",
+     "ad": null,
+     "spend": 966895,
+     "results": 327,
+     "kind": "lead",
+     "resultType": "Clientes potenciales (formulario)",
+     "convRate": 0.11612216,
+     "clicks": 2816,
+     "clicksAll": null,
+     "ctr": 3.34668362,
+     "impr": 84143,
+     "imprEst": true,
+     "reach": 50970,
+     "freq": 1.65082063,
+     "v3s": 55164,
+     "vavg": 5,
+     "repStart": "2026-10-01",
+     "repEnd": "2026-10-18"
+    },
+    {
+     "campaign": "CP /MIRADOR DEL PERDOMO/ Octubre",
+     "adset": "MIRADOR DEL PERDOMO P.P",
+     "ad": null,
+     "spend": 270700,
+     "results": 77,
+     "kind": "lead",
+     "resultType": "Clientes potenciales (formulario)",
+     "convRate": 0.12643678,
+     "clicks": 609,
+     "clicksAll": null,
+     "ctr": 4.25487319,
+     "impr": 14313,
+     "imprEst": true,
+     "reach": 6797,
+     "freq": 2.1057081,
+     "v3s": 6215,
+     "vavg": 4,
+     "repStart": "2026-10-01",
+     "repEnd": "2026-10-18"
+    }
+   ]
   }
  },
  "analyses": {
