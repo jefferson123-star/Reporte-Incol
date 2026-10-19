@@ -141,8 +141,7 @@ textarea{width:100%;min-height:260px;font-family:var(--mono);font-size:12px;back
     <div class="tb-actions">
       <button id="btnBudget" type="button">Registrar presupuesto</button>
       <button id="btnUpload" type="button" class="primary">Cargar informe</button>
-      <button id="btnText" type="button">Copiar resumen</button>
-      <button id="btnGh" type="button">Conectar GitHub</button>
+
     </div>
   </div>
 </header>
@@ -178,6 +177,7 @@ textarea{width:100%;min-height:260px;font-family:var(--mono);font-size:12px;back
 </main>
 </div>
 
+<footer class="wrap" style="padding-block:0 28px;text-align:right"><button id="btnGh" type="button" class="linkbtn" style="color:var(--muted);font-weight:500">Administrar</button></footer>
 <div id="overlay" class="ov" hidden></div>
 
 <script>
@@ -220,6 +220,7 @@ async function saveData(mut,msg){
 function applyData(d){if(Array.isArray(d.projects)&&d.projects.length)state.projects=d.projects;state.reports=d.reports||{};state.budgets=d.budgets||{};state.analyses=d.analyses||{};}
 try{const p=localStorage.getItem("incol.proj");if(p)state.proj=p;}catch(e){}
 if(location.hash.length>1)state.proj=decodeURIComponent(location.hash.slice(1));
+try{state.recHidden=!!localStorage.getItem("incol.recHidden");state.anHidden=!!localStorage.getItem("incol.anHidden");}catch(e){}
 
 function monthLabel(m){if(!m)return"—";const [y,mm]=m.split("-");return MES[+mm-1]+" "+y;}
 function monthShort(m){const [y,mm]=m.split("-");return MES3[+mm-1]+" ’"+y.slice(2);}
@@ -559,11 +560,6 @@ function render(){
     </div>
   </section>
 
-  <section class="card" aria-labelledby="hAi">
-    <div class="an-head"><div class="sec-tag" id="hAi">RECOMENDACIONES</div>${state.canWrite?`<span style="display:flex;gap:14px;align-items:center"><a class="linkbtn" style="background:var(--accent);padding:5px 12px;border-radius:999px;text-decoration:none" href="https://claude.ai/artifact/FKwkwi2uopheM5d7DkYF7A#${month}_${proj}" target="_blank" rel="noopener">Analizar ahora</a><button type="button" class="linkbtn" id="btnAi">Editar</button></span>`:""}</div>
-    ${aiHTML(month,proj)}
-  </section>
-
   <div class="two">
     <section class="card" aria-labelledby="hPr">
       <div class="sec-tag" id="hPr">PROYECCIÓN</div>
@@ -609,9 +605,14 @@ function render(){
     ${at.list.map(x=>`<tr><td class="name"><strong>${esc(x.adset)}</strong><small>${esc(x.campaign)}${proj==="all"?" · "+esc(projName(x.project)):""} · ${x.kind==="msg"?"WhatsApp":"Formulario"}</small></td><td>${money(x.a.spend)}</td><td>${int(x.a.results)}</td><td>${money(x.a.cpl)}</td><td>${pct(x.a.conv)}</td><td>${int(x.a.clicks)}</td><td>${pct(x.a.ctr)}</td><td>${money(x.a.cpc)}</td><td>${dec(x.a.freq)}</td><td class="l"><span class="pill ${x.cls}">${x.rec}</span>${x.why?`<div class="note">${esc(x.why)}</div>`:""}</td></tr>`).join("")}
     </tbody></table></div>
   </section>
-  ${reportsListHTML()}`;
-  $("anToggle").onclick=()=>{state.anHidden=!state.anHidden;render();};
+  ${state.canWrite?reportsListHTML():""}
+  <section class="card" aria-labelledby="hAi">
+    <div class="an-head"><div class="sec-tag" id="hAi">RECOMENDACIONES</div><span style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">${state.canWrite?`<a class="linkbtn" style="background:var(--accent);padding:5px 12px;border-radius:999px;text-decoration:none" href="https://claude.ai/artifact/FKwkwi2uopheM5d7DkYF7A#${month}_${proj}" target="_blank" rel="noopener">Analizar ahora</a><button type="button" class="linkbtn" id="btnAi">Editar</button>`:""}<button type="button" class="linkbtn" id="recToggle">${state.recHidden?"Mostrar":"Ocultar"}</button></span></div>
+    <div ${state.recHidden?"hidden":""}>${aiHTML(month,proj)}</div>
+  </section>`;
+  $("anToggle").onclick=()=>{state.anHidden=!state.anHidden;try{localStorage.setItem("incol.anHidden",state.anHidden?"1":"");}catch(e){}render();};
   if($("btnAi"))$("btnAi").onclick=openAi;
+  if($("recToggle"))$("recToggle").onclick=()=>{state.recHidden=!state.recHidden;try{localStorage.setItem("incol.recHidden",state.recHidden?"1":"");}catch(e){}render();};
   body.querySelectorAll("[data-proj]").forEach(el=>el.onclick=e=>{e.preventDefault();state.proj=el.dataset.proj;render();window.scrollTo({top:0,behavior:"smooth"});});
   bindReportList();
 }
@@ -671,7 +672,7 @@ function openGh(){
     catch(e){ghToken="";$("gSave").disabled=false;$("gMsg").innerHTML=`<div class="msg bad">${esc(e.message)}</div>`;}
   };
 }
-function setWrite(on){state.canWrite=on;["btnBudget","btnUpload"].forEach(i=>$(i).hidden=!on);$("btnGh").textContent=on?"GitHub conectado":"Conectar GitHub";}
+function setWrite(on){state.canWrite=on;["btnBudget","btnUpload"].forEach(i=>$(i).hidden=!on);$("btnGh").textContent=on?"Administrar · conectado":"Administrar";}
 function reportsListHTML(){
   const reps=Object.entries(state.reports).sort((a,b)=>(b[1].month+b[1].project).localeCompare(a[1].month+a[1].project));
   if(!reps.length)return"";
@@ -805,7 +806,7 @@ function openText(){
   $("tTxt").value=t;$("tClose").onclick=closeDlg;
   $("tCopy").onclick=()=>{navigator.clipboard.writeText(t).then(()=>{$("tMsg").innerHTML=`<div class="msg ok">Copiado.</div>`;}).catch(()=>{const ta=$("tTxt");ta.focus();ta.select();$("tMsg").innerHTML=`<div class="msg warn">Selecciónalo y cópialo con Ctrl+C.</div>`;});};
 }
-$("btnBudget").onclick=openBudget;$("btnUpload").onclick=openUpload;$("btnText").onclick=openText;$("btnGh").onclick=openGh;
+$("btnBudget").onclick=openBudget;$("btnUpload").onclick=openUpload;$("btnGh").onclick=openGh;
 
 /* ---------- data ---------- */
 render();
