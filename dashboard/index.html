@@ -409,8 +409,8 @@ function diagnose(a){
     head="Las métricas están sanas";
     text="CTR, conversión y frecuencia están en rango. Hay espacio para escalar los conjuntos con mejor costo por resultado.";
     todo="Escala lo que funciona";
-    todoText="Las métricas están en rango. Sube presupuesto de forma gradual en los conjuntos con menor costo por resultado.";
-    actions=["Subir 15%–20% el presupuesto de los conjuntos ganadores cada 2–3 días","Duplicar el mejor conjunto con un creativo nuevo","Mantener 20%–30% del presupuesto para pruebas"];
+    todoText="Las métricas están en rango. Sube presupuesto de forma gradual en los conjuntos con menor costo por resultado, y antes de apagar un conjunto revisa sus anuncios.";
+    actions=["Subir 20%–25% el presupuesto de los conjuntos ganadores cada 3–4 días (máximo 35% por aumento)","Duplicar el mejor conjunto con un creativo nuevo","Mantener 20%–30% del presupuesto para pruebas"];
   }
   return {flags:f,head,text,todo,actions,todoText,prose};
 }
@@ -427,12 +427,13 @@ function adsetTable(rows,bud){
     const a=x.a;let rec,cls,why;
     if(a.spend<total*0.01&&!a.results){rec="Sin entrega";cls="mute";why="Casi no gasta; revisar o apagar";}
     else if(!ref){rec="Sin referencia";cls="mute";why="";}
-    else if(!a.results&&a.spend>=1.5*ref){rec="Pausar";cls="bad";why=`Gastó ${money(a.spend)} sin resultados`;}
-    else if(a.cpl>=1.6*ref&&a.spend>=2*ref){rec="Pausar";cls="bad";why=`Costo ${Math.round(a.cpl/ref*100-100)}% sobre la referencia`;}
-    else if(a.cpl&&a.cpl<=0.8*ref&&a.results>=5){rec="Escalar";cls="ok";why="Costo bajo y volumen suficiente";}
-    else if(a.cpl&&a.cpl<=1.1*ref){rec="Mantener";cls="ok";why="En rango";}
-    else if(!a.results){rec="Vigilar";cls="warn";why="Aún sin resultados";}
-    else{rec="Ajustar";cls="warn";why="Costo por encima de la referencia";}
+    else if(a.spend<2*ref&&a.results<5){rec="En prueba";cls="warn";why=`Gastó ${money(a.spend)}: dejar llegar a 2–3 veces el CPL objetivo antes de decidir`;}
+    else if(a.cpl&&a.cpl<=0.8*ref&&a.results>=5){rec="Escalar";cls="ok";why="Por debajo del objetivo con volumen: subir 20%–25% cada 3–4 días";}
+    else if(a.cpl&&a.cpl<=ref){rec="Mantener";cls="ok";why="Dentro del objetivo";}
+    else if(a.spend<2*ref){rec="En prueba";cls="warn";why=`Gastó ${money(a.spend)}: dejar llegar a 2–3 veces el CPL objetivo antes de decidir`;}
+    else if(!a.results){rec="Pausar";cls="bad";why=`Gastó ${money(a.spend)} sin resultados`;}
+    else if(a.cpl>1.2*ref){rec="Pausar";cls="bad";why=`Costo ${Math.round(a.cpl/ref*100-100)}% sobre el objetivo: revisar primero sus anuncios`;}
+    else{rec="Ajustar";cls="warn";why="Algo sobre el objetivo: pausar los anuncios más costosos";}
     if(a.freq!=null&&a.freq>3)why+=(why?" · ":"")+"frecuencia alta";
     x.rec=rec;x.cls=cls;x.why=why;
   }
@@ -532,7 +533,7 @@ function render(){
   const camps=Object.values(cmap).map(c=>{c.a=agg(c.items.flatMap(i=>i.rows));const ref=(c.kind==="lead"?(bud.per[c.project]||{}).cplTarget:0)||at.avg[c.kind];
     if(!c.a.results){c.st=c.a.spend<5000?"Sin entrega":"Sin resultados";c.cls=c.a.spend<5000?"mute":"bad";}
     else if(!ref){c.st="—";c.cls="mute";}
-    else{const r=c.a.cpl/ref;[c.st,c.cls]=r<=0.9?["Rinde bien","ok"]:r<=1.15?["En rango","ok"]:r<=1.5?["Revisar","warn"]:["Costosa","bad"];}
+    else{const r=c.a.cpl/ref;[c.st,c.cls]=r<=0.8?["Rinde bien","ok"]:r<=1?["En rango","ok"]:r<=1.2?["Revisar","warn"]:["Costosa","bad"];}
     return c;}).sort((p,q)=>q.a.spend-p.a.spend);
   const best=at.list.filter(x=>x.a.results>0&&x.kind==="lead").sort((p,q)=>p.a.cpl-q.a.cpl).slice(0,3);
 
