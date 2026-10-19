@@ -39,25 +39,25 @@
     "xua": {
      "budget": 5000000,
      "goal": 200,
-     "cplTarget": 17
+     "cplTarget": 15000
     },
     "qanvas": {
      "budget": 3000000,
      "goal": 400,
-     "cplTarget": 10
+     "cplTarget": 7000
     },
     "steel2": {
-     "budget": 300,
+     "budget": 3000000,
      "goal": 300,
-     "cplTarget": 10
+     "cplTarget": 10000
     },
     "mirador": {
      "budget": 2000000,
      "goal": 300,
-     "cplTarget": 7
+     "cplTarget": 6000
     }
    },
-   "updatedAt": "2026-10-19T02:14:44.912Z"
+   "updatedAt": "2026-10-19T02:15:58.810Z"
   }
  },
  "reports": {
