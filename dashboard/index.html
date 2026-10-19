@@ -200,7 +200,7 @@ async function saveData(mut,msg){
     const {sha,data}=await ghGet();mut(data);
     const r=await fetch(ghUrl(),{method:"PUT",headers:{...ghHead(),"Content-Type":"application/json"},body:JSON.stringify({message:msg,content:b64enc(JSON.stringify(data,null,1)),sha,branch:GH.branch})});
     if(r.ok){applyData(data);return;}
-    if(r.status!==409&&r.status!==422)throw new Error(r.status===403||r.status===404?"El token no tiene permiso de escritura en el repo":"GitHub respondió "+r.status);
+    if(r.status!==409&&r.status!==422){let m="";try{m=(await r.json()).message||"";}catch(e){}throw new Error((r.status===403||r.status===404?"El token no tiene permiso de escritura en el repo (Contents: Read and write)":"GitHub respondió "+r.status)+(m?" · "+r.status+": "+m:""));}
   }
   throw new Error("Otro cambio se guardó al mismo tiempo. Intenta de nuevo.");
 }
