@@ -32,7 +32,34 @@
    ]
   }
  ],
- "budgets": {},
+ "budgets": {
+  "2026-10": {
+   "month": "2026-10",
+   "projects": {
+    "xua": {
+     "budget": 5000000,
+     "goal": 200,
+     "cplTarget": 17000
+    },
+    "qanvas": {
+     "budget": 3000000,
+     "goal": 400,
+     "cplTarget": 10000
+    },
+    "steel2": {
+     "budget": 300000,
+     "goal": 300,
+     "cplTarget": 10000
+    },
+    "mirador": {
+     "budget": 2000000,
+     "goal": 300,
+     "cplTarget": 7000
+    }
+   },
+   "updatedAt": "2026-10-19T02:06:36.456523+00:00"
+  }
+ },
  "reports": {
   "2026-10_xua": {
    "month": "2026-10",
