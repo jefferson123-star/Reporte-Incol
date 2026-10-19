@@ -126,8 +126,8 @@ textarea{width:100%;min-height:260px;font-family:var(--mono);font-size:12px;back
     <div class="logo">BRAND<br>MOTION<small>LAB</small></div>
     <div class="tb-sub">Reportes<br>Incol</div>
     <div class="tb-actions">
-      <button id="btnText" type="button" class="primary">Texto para IA</button>
-      <a class="btn" href="https://ia.felipevergara.co/" target="_blank" rel="noopener">Abrir IA de Felipe</a>
+      <button id="btnText" type="button" class="primary">Copiar resumen</button>
+
     </div>
   </div>
 </header>
@@ -484,7 +484,7 @@ function render(){
   </section>
 
   <section class="card ai" aria-labelledby="hAi">
-    <div class="sec-tag" id="hAi">ANÁLISIS IA · FELIPE VERGARA</div>
+    <div class="sec-tag" id="hAi">ANÁLISIS Y RECOMENDACIONES</div>
     ${aiHTML(month,proj)}
   </section>
 
@@ -578,8 +578,8 @@ function md(t){
 }
 function aiHTML(month,proj){
   const a=state.analyses[month+"_"+proj];
-  if(!a)return `<p class="muted">Todavía no hay análisis de la IA para ${esc(proj==="all"?"Incol":projName(proj))} en ${esc(monthLabel(month))}.${proj==="all"?" Elige un proyecto arriba para ver su análisis.":""}</p>`;
-  return md(a.text)+`<div class="src">Generado por el Asistente del Curso de Meta Ads de Felipe Vergara${a.date?" · "+esc(a.date):""}. Es una guía orientativa: revisa las clases citadas antes de aplicar cambios.</div>`;
+  if(!a)return `<p class="muted">Todavía no hay análisis para ${esc(proj==="all"?"Incol":projName(proj))} en ${esc(monthLabel(month))}.${proj==="all"?" Elige un proyecto arriba para ver su análisis.":""}</p>`;
+  return md(a.text)+`${a.date?`<div class="src">Actualizado el ${esc(a.date)}</div>`:""}`;
 }
 function reportsListHTML(){
   const reps=Object.entries(state.reports).sort((a,b)=>(b[1].month+b[1].project).localeCompare(a[1].month+a[1].project));
@@ -626,7 +626,7 @@ function aiText(){
 }
 function openText(){
   const t=aiText();
-  openDlg(`<h2>Texto para IA</h2><p class="note">Listo para pegar en el asistente de Meta Ads. Incluye el proyecto y mes que tienes seleccionados.</p><textarea id="tTxt" readonly></textarea><div id="tMsg"></div><div class="row-end"><button type="button" id="tClose">Cerrar</button><button type="button" class="primary" id="tCopy">Copiar</button></div>`);
+  openDlg(`<h2>Resumen en texto</h2><p class="note">Resumen del proyecto y mes seleccionados.</p><textarea id="tTxt" readonly></textarea><div id="tMsg"></div><div class="row-end"><button type="button" id="tClose">Cerrar</button><button type="button" class="primary" id="tCopy">Copiar</button></div>`);
   $("tTxt").value=t;$("tClose").onclick=closeDlg;
   $("tCopy").onclick=()=>{navigator.clipboard.writeText(t).then(()=>{$("tMsg").innerHTML=`<div class="msg ok">Copiado.</div>`;}).catch(()=>{const ta=$("tTxt");ta.focus();ta.select();$("tMsg").innerHTML=`<div class="msg warn">Selecciónalo y cópialo con Ctrl+C.</div>`;});};
 }
