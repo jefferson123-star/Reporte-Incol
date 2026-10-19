@@ -6,6 +6,7 @@
 <title>Dashboard Incol</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* Layout: barra oscura de agencia arriba, tarjeta de presupuesto, filtros, métricas, análisis, proyección y tablas en una columna */
 :root{
@@ -32,8 +33,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 button,.btn{font:inherit;cursor:pointer;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 14px;font-weight:600;font-size:13px}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .topbar button{background:transparent;color:var(--bar-ink);border-color:#3a3b3f}
-.topbar a.btn{background:transparent;color:var(--bar-ink);border-color:#3a3b3f;text-decoration:none}
-.ai h3{margin:14px 0 4px;font-size:16px}.ai p{margin:6px 0}.ai ul{margin:4px 0 8px;padding-left:20px;display:grid;gap:4px}.ai .src{font-size:12px;color:var(--muted);margin-top:10px}
+.ai h3{margin:14px 0 4px;font-size:16px}.ai p{margin:6px 0}.ai ul{margin:4px 0 8px;padding-left:20px;display:grid;gap:4px}.ai .src{font-size:12px;color:var(--muted);margin-top:10px}.ai-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .topbar button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 button.primary{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 button:disabled{opacity:.45;cursor:not-allowed}
@@ -126,8 +126,10 @@ textarea{width:100%;min-height:260px;font-family:var(--mono);font-size:12px;back
     <div class="logo">BRAND<br>MOTION<small>LAB</small></div>
     <div class="tb-sub">Reportes<br>Incol</div>
     <div class="tb-actions">
-      <button id="btnText" type="button" class="primary">Copiar resumen</button>
-
+      <button id="btnBudget" type="button">Registrar presupuesto</button>
+      <button id="btnUpload" type="button" class="primary">Cargar informe</button>
+      <button id="btnText" type="button">Copiar resumen</button>
+      <button id="btnGh" type="button">Conectar GitHub</button>
     </div>
   </div>
 </header>
@@ -185,6 +187,24 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 const state={projects:DEFAULT_PROJECTS,reports:{},budgets:{},analyses:{},proj:"all",month:null,canWrite:false,db:null,ready:false};
+const GH={owner:"jefferson123-star",repo:"Reporte-Incol",path:"dashboard/data.json",branch:"main"};
+let ghToken="";try{ghToken=localStorage.getItem("incol.ghToken")||"";}catch(e){}
+function b64dec(c){const bin=atob(c.replace(/\n/g,""));const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u);}
+function b64enc(str){const u=new TextEncoder().encode(str);let s="";for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
+const ghUrl=()=>`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`;
+const ghHead=()=>({"Authorization":"Bearer "+ghToken,"Accept":"application/vnd.github+json"});
+async function ghGet(){const r=await fetch(ghUrl()+"?ref="+GH.branch+"&t="+Date.now(),{headers:ghHead(),cache:"no-store"});if(!r.ok)throw new Error(r.status===401?"Token inválido o vencido":r.status===404?"Sin acceso al repo con este token":"GitHub respondió "+r.status);const j=await r.json();return {sha:j.sha,data:JSON.parse(b64dec(j.content))};}
+async function saveData(mut,msg){
+  if(!ghToken)throw new Error("Conecta GitHub primero");
+  for(let attempt=0;attempt<2;attempt++){
+    const {sha,data}=await ghGet();mut(data);
+    const r=await fetch(ghUrl(),{method:"PUT",headers:{...ghHead(),"Content-Type":"application/json"},body:JSON.stringify({message:msg,content:b64enc(JSON.stringify(data,null,1)),sha,branch:GH.branch})});
+    if(r.ok){applyData(data);return;}
+    if(r.status!==409&&r.status!==422)throw new Error(r.status===403||r.status===404?"El token no tiene permiso de escritura en el repo":"GitHub respondió "+r.status);
+  }
+  throw new Error("Otro cambio se guardó al mismo tiempo. Intenta de nuevo.");
+}
+function applyData(d){if(Array.isArray(d.projects)&&d.projects.length)state.projects=d.projects;state.reports=d.reports||{};state.budgets=d.budgets||{};state.analyses=d.analyses||{};}
 try{const p=localStorage.getItem("incol.proj");if(p)state.proj=p;}catch(e){}
 if(location.hash.length>1)state.proj=decodeURIComponent(location.hash.slice(1));
 
@@ -433,7 +453,7 @@ function render(){
   }else{
     $("bTotal").textContent="Sin presupuesto registrado";
     $("bRemain").textContent=`Invertido ${money(a.spend)}`;
-    $("bDaily").textContent="Envía el presupuesto a Claude para ver ritmo y proyección";
+    $("bDaily").textContent="Registra el presupuesto para ver ritmo y proyección";
   }
   const expected=bud.goal?bud.goal*day/D:null;
   const projected=day?a.results/day*D:null;
@@ -444,7 +464,8 @@ function render(){
   const body=$("body");
   if(!state.ready){body.innerHTML=`<div class="card empty">Cargando datos…</div>`;return;}
   if(!rows.length){
-    body.innerHTML=`<div class="card empty"><strong>No hay informe de ${esc(scopeName)} para ${esc(monthLabel(month))}.</strong><span>Aún no se ha cargado el informe de este mes.</span><span>Envía el Excel a Claude y se actualiza aquí.</span></div>`+reportsListHTML();return;
+    body.innerHTML=`<div class="card empty"><strong>No hay informe de ${esc(scopeName)} para ${esc(monthLabel(month))}.</strong><span>${state.canWrite?"Sube el Excel exportado de Meta Ads y el dashboard se arma solo.":"Aún no se ha cargado el informe de este mes."}</span>${state.canWrite?`<button type="button" class="primary" id="emptyUp">Cargar informe</button>`:""}</div>`+reportsListHTML();
+    if($("emptyUp"))$("emptyUp").onclick=openUpload;bindReportList();return;
   }
   const dg=diagnose(a);
   const at=adsetTable(rows,bud);
@@ -484,7 +505,7 @@ function render(){
   </section>
 
   <section class="card ai" aria-labelledby="hAi">
-    <div class="sec-tag" id="hAi">ANÁLISIS Y RECOMENDACIONES</div>
+    <div class="ai-head"><div class="sec-tag" id="hAi">ANÁLISIS Y RECOMENDACIONES</div>${state.canWrite?`<button type="button" id="btnAi">Editar análisis</button>`:""}</div>
     ${aiHTML(month,proj)}
   </section>
 
@@ -501,7 +522,7 @@ function render(){
         <div>A día ${day}/${D} deberían ir ~${int(expected)}; van ${int(a.results)}.</div>
         ${a.results<expected?`<div><strong>Faltan ${int(expected-a.results)} al ritmo.</strong></div>`:""}
         <div class="muted">Proyección a fin de mes: ~${int(projected)} vs meta ${int(bud.goal)}.</div>`
-        :`<span class="pill mute">Sin meta</span><div>Proyección a fin de mes al ritmo actual: ~${int(projected)} resultados con ${money(spendProj)} de inversión.</div><div class="muted">Envía presupuesto y meta a Claude para medir el ritmo.</div>`}
+        :`<span class="pill mute">Sin meta</span><div>Proyección a fin de mes al ritmo actual: ~${int(projected)} resultados con ${money(spendProj)} de inversión.</div><div class="muted">Registra presupuesto y meta para medir el ritmo.</div>`}
       </div>
       <div class="box"><div class="lbl">¿Qué está pasando?</div><h3>${esc(dg.head)}</h3><div>${esc(dg.text)}</div>
         ${dg.flags.map(f=>`<div class="kv"><span>${esc(f.k)}</span><span><span class="pill ${f.s}">${f.v} · ${f.t}</span></span></div>`).join("")}
@@ -558,6 +579,7 @@ function render(){
     </tbody></table></div>
   </section>
   ${reportsListHTML()}`;
+  if($("btnAi"))$("btnAi").onclick=openAi;
   body.querySelectorAll("[data-proj]").forEach(el=>el.onclick=e=>{e.preventDefault();state.proj=el.dataset.proj;render();window.scrollTo({top:0,behavior:"smooth"});});
   bindReportList();
 }
@@ -566,10 +588,10 @@ function md(t){
   const inl=s=>esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
   for(const raw of String(t||"").split("\n")){
     const l=raw.trim();
-    if(/^[-•]\s+/.test(l)){if(!ul){out.push("<ul>");ul=true;}out.push("<li>"+inl(l.replace(/^[-•]\s+/,""))+"</li>");continue;}
+    if(/^[-•*]\s+/.test(l)){if(!ul){out.push("<ul>");ul=true;}out.push("<li>"+inl(l.replace(/^[-•*]\s+/,""))+"</li>");continue;}
     if(ul){out.push("</ul>");ul=false;}
     if(!l)continue;
-    if(l.startsWith("## "))out.push("<h3>"+inl(l.slice(3))+"</h3>");
+    if(/^#{1,4}\s/.test(l))out.push("<h3>"+inl(l.replace(/^#{1,4}\s/,""))+"</h3>");
     else if(l.startsWith("> "))out.push('<p class="note">'+inl(l.slice(2))+"</p>");
     else out.push("<p>"+inl(l)+"</p>");
   }
@@ -578,9 +600,43 @@ function md(t){
 }
 function aiHTML(month,proj){
   const a=state.analyses[month+"_"+proj];
-  if(!a)return `<p class="muted">Todavía no hay análisis para ${esc(proj==="all"?"Incol":projName(proj))} en ${esc(monthLabel(month))}.${proj==="all"?" Elige un proyecto arriba para ver su análisis.":""}</p>`;
-  return md(a.text)+`${a.date?`<div class="src">Actualizado el ${esc(a.date)}</div>`:""}`;
+  if(!a||!a.text)return `<p class="muted">Todavía no hay análisis para ${esc(proj==="all"?"Incol":projName(proj))} en ${esc(monthLabel(month))}.${state.canWrite?" Usa “Editar análisis” para pegarlo.":""}</p>`;
+  return md(a.text)+(a.date?`<div class="src">Actualizado el ${esc(a.date)}</div>`:"");
 }
+function openAi(){
+  const k=state.month+"_"+state.proj;const a=state.analyses[k]||{};
+  openDlg(`<h2>Análisis · ${esc(state.proj==="all"?"Incol":projName(state.proj))} · ${esc(monthLabel(state.month))}</h2>
+  <p class="note">Pega aquí el análisis. Formato: una línea con ## es un subtítulo, una línea con - es una viñeta, **texto** va en negrita.</p>
+  <textarea id="aTxt"></textarea><div id="aMsg"></div>
+  <div class="row-end"><button type="button" id="aCancel">Cancelar</button><button type="button" class="primary" id="aSave">Guardar</button></div>`);
+  $("aTxt").value=a.text||"";$("aCancel").onclick=closeDlg;
+  $("aSave").onclick=async()=>{
+    const t=$("aTxt").value.trim();$("aSave").disabled=true;
+    const d=new Date();const date=d.getDate()+" de "+MES[d.getMonth()]+" de "+d.getFullYear();
+    try{await saveData(x=>{x.analyses=x.analyses||{};if(t)x.analyses[k]={text:t,date};else delete x.analyses[k];},"Análisis "+k);closeDlg();render();}
+    catch(e){$("aSave").disabled=false;$("aMsg").innerHTML=`<div class="msg bad">${esc(e.message)}</div>`;}
+  };
+}
+function openGh(){
+  openDlg(`<h2>Conectar GitHub</h2>
+  <p class="note">Para guardar presupuestos, informes y análisis en el repo ${GH.owner}/${GH.repo}. El token queda guardado solo en este navegador.</p>
+  <ol class="note" style="padding-left:18px;margin:0;display:grid;gap:4px">
+    <li>Abre <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a></li>
+    <li>Nombre: “Dashboard Incol”. Repository access: <strong>Only select repositories</strong> → Reporte-Incol.</li>
+    <li>Permissions → Repository permissions → <strong>Contents: Read and write</strong>. Genera el token y cópialo.</li>
+  </ol>
+  <label>Token<input type="password" id="gTok" autocomplete="off" placeholder="github_pat_…"></label>
+  <div id="gMsg"></div>
+  <div class="row-end">${ghToken?`<button type="button" id="gOut">Desconectar</button>`:""}<button type="button" id="gCancel">Cancelar</button><button type="button" class="primary" id="gSave">Conectar</button></div>`);
+  $("gCancel").onclick=closeDlg;
+  if($("gOut"))$("gOut").onclick=()=>{ghToken="";try{localStorage.removeItem("incol.ghToken");}catch(e){}setWrite(false);closeDlg();render();};
+  $("gSave").onclick=async()=>{
+    const t=$("gTok").value.trim();if(!t)return;$("gSave").disabled=true;ghToken=t;
+    try{const {data}=await ghGet();try{localStorage.setItem("incol.ghToken",t);}catch(e){}applyData(data);setWrite(true);closeDlg();render();}
+    catch(e){ghToken="";$("gSave").disabled=false;$("gMsg").innerHTML=`<div class="msg bad">${esc(e.message)}</div>`;}
+  };
+}
+function setWrite(on){state.canWrite=on;["btnBudget","btnUpload"].forEach(i=>$(i).hidden=!on);$("btnGh").textContent=on?"GitHub conectado":"Conectar GitHub";}
 function reportsListHTML(){
   const reps=Object.entries(state.reports).sort((a,b)=>(b[1].month+b[1].project).localeCompare(a[1].month+a[1].project));
   if(!reps.length)return"";
@@ -592,7 +648,7 @@ function bindReportList(){
       const id=btn.closest(".rep").dataset.rep;
       if(btn.dataset.confirm!=="1"){btn.dataset.confirm="1";btn.textContent="¿Seguro? Eliminar";btn.classList.add("primary");setTimeout(()=>{if(btn.isConnected){btn.dataset.confirm="";btn.textContent="Eliminar";btn.classList.remove("primary");}},4000);return;}
       btn.disabled=true;
-      try{await state.db.doc("reports/"+id).delete();}catch(e){btn.disabled=false;btn.textContent="No se pudo eliminar";}
+      try{await saveData(d=>{delete d.reports[id];},"Eliminar informe "+id);render();}catch(e){btn.disabled=false;btn.textContent="No se pudo eliminar";}
     };
   });
 }
@@ -601,6 +657,90 @@ function bindReportList(){
 function openDlg(html){const ov=$("overlay");ov.innerHTML=`<div class="dlg" role="dialog" aria-modal="true">${html}</div>`;ov.hidden=false;ov.onclick=e=>{if(e.target===ov)closeDlg();};return ov.firstChild;}
 function closeDlg(){const ov=$("overlay");ov.hidden=true;ov.innerHTML="";}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)closeDlg();});
+
+function openBudget(){
+  if(!state.canWrite)return;
+  const m=state.month;const b=(state.budgets[m]||{}).projects||{};
+  const d=openDlg(`<h2>Registrar presupuesto</h2>
+  <label>Mes<input type="month" id="bMonth" value="${m}"></label>
+  <p class="note">Por proyecto: presupuesto del mes y meta de resultados o CPL objetivo. Si pones presupuesto y CPL objetivo, la meta se calcula sola.</p>
+  <div class="grid-form" id="bRows"></div>
+  <div id="bMsg"></div>
+  <div class="row-end"><button type="button" id="bCancel">Cancelar</button><button type="button" class="primary" id="bSave">Guardar</button></div>`);
+  const fill=mm=>{const bb=(state.budgets[mm]||{}).projects||{};$("bRows").innerHTML=state.projects.map(p=>{const x=bb[p.id]||{};return `<div class="prow"><strong class="pn">${esc(p.name)}</strong><label>Presupuesto (COP)<input inputmode="numeric" id="bb_${p.id}" value="${x.budget?nf0.format(x.budget):""}" placeholder="0"></label><label>Meta resultados<input inputmode="numeric" id="bg_${p.id}" value="${x.goal||""}" placeholder="opcional"></label><label>CPL objetivo<input inputmode="numeric" id="bt_${p.id}" value="${x.cplTarget?nf0.format(x.cplTarget):""}" placeholder="opcional"></label></div>`;}).join("");};
+  fill(m);
+  $("bMonth").onchange=e=>fill(e.target.value);
+  $("bCancel").onclick=closeDlg;
+  $("bSave").onclick=async()=>{
+    const mm=$("bMonth").value;if(!/^\d{4}-\d{2}$/.test(mm)){$("bMsg").innerHTML=`<div class="msg bad">Elige un mes.</div>`;return;}
+    const projects={};
+    for(const p of state.projects){const bv=num($("bb_"+p.id).value),gv=num($("bg_"+p.id).value),tv=num($("bt_"+p.id).value);
+      if(bv||gv||tv)projects[p.id]={budget:bv||0,goal:gv||0,cplTarget:tv||0};}
+    $("bSave").disabled=true;
+    try{await saveData(d=>{d.budgets=d.budgets||{};d.budgets[mm]={month:mm,projects,updatedAt:new Date().toISOString()};},"Presupuesto "+mm);state.month=mm;closeDlg();render();}
+    catch(e){$("bSave").disabled=false;$("bMsg").innerHTML=`<div class="msg bad">${esc(e.message)}</div>`;}
+  };
+}
+
+function openUpload(){
+  if(!state.canWrite)return;
+  const d=openDlg(`<h2>Cargar informe de Meta Ads</h2>
+  <label>Proyecto<select id="uProj"><option value="auto">Detectar por nombre de campaña</option>${state.projects.map(p=>`<option value="${p.id}" ${state.proj===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></label>
+  <div class="drop" id="uDrop"><strong>Arrastra el Excel aquí</strong><span class="note">o</span><input type="file" id="uFile" accept=".xlsx,.xls,.csv"><span class="note">Exporta desde el Administrador de anuncios a nivel de conjunto de anuncios. El mes se toma de “Inicio del informe”.</span></div>
+  <div id="uPrev"></div>
+  <div class="row-end"><button type="button" id="uCancel">Cancelar</button><button type="button" class="primary" id="uSave" disabled>Guardar informe</button></div>`);
+  let parsed=null,fileName="";
+  $("uCancel").onclick=closeDlg;
+  const drop=$("uDrop");
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add("on");};
+  drop.ondragleave=()=>drop.classList.remove("on");
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove("on");if(e.dataTransfer.files[0])handle(e.dataTransfer.files[0]);};
+  $("uFile").onchange=e=>{if(e.target.files[0])handle(e.target.files[0]);};
+  $("uProj").onchange=()=>{if(parsed)preview();};
+  async function handle(f){
+    fileName=f.name;$("uPrev").innerHTML=`<div class="msg warn">Leyendo ${esc(f.name)}…</div>`;
+    try{
+      if(typeof XLSX==="undefined")throw new Error("No cargó el lector de Excel. Recarga la página.");
+      const buf=await f.arrayBuffer();
+      const wb=XLSX.read(buf,{type:"array",cellDates:false});
+      parsed=parseWorkbook(wb);
+      if(!parsed.rows.length)throw new Error("El archivo no tiene filas con gasto.");
+      preview();
+    }catch(e){parsed=null;$("uSave").disabled=true;$("uPrev").innerHTML=`<div class="msg bad">${esc(e.message)}</div>`;}
+  }
+  function groups(){
+    const sel=$("uProj").value,g={},un=[];
+    for(const r of parsed.rows){
+      const pid=sel==="auto"?detectProject(r.campaign):sel;
+      const start=r.repStart||new Date().toISOString().slice(0,10);
+      if(!pid){un.push(r);continue;}
+      const k=start.slice(0,7)+"_"+pid;(g[k]=g[k]||{month:start.slice(0,7),project:pid,rows:[]}).rows.push(r);
+    }
+    return {g,un};
+  }
+  function preview(){
+    const {g,un}=groups();
+    const items=Object.entries(g);
+    $("uPrev").innerHTML=`<div class="grid-form">${items.map(([k,x])=>{const a=agg(x.rows);const exists=state.reports[k];return `<div class="msg ok"><strong>${esc(projName(x.project))} · ${esc(monthLabel(x.month))}</strong> — ${x.rows.length} conjuntos · ${money(a.spend)} · ${int(a.results)} resultados${exists?" · reemplaza el informe que ya estaba":""}</div>`;}).join("")}
+    ${un.length?`<div class="msg warn">${un.length} filas sin proyecto (no reconocí el nombre de campaña): ${esc([...new Set(un.map(r=>r.campaign))].slice(0,4).join(", "))}. Elige el proyecto arriba para incluirlas.</div>`:""}
+    <div class="note">Hoja leída: ${esc(parsed.sheet)}</div></div>`;
+    $("uSave").disabled=!items.length;
+  }
+  $("uSave").onclick=async()=>{
+    const {g}=groups();$("uSave").disabled=true;
+    try{
+      const docs={};
+      for(const [k,x] of Object.entries(g)){
+        const starts=x.rows.map(r=>r.repStart).filter(Boolean).sort(),ends=x.rows.map(r=>r.repEnd).filter(Boolean).sort();
+        docs[k]={month:x.month,project:x.project,platform:"meta",fileName,uploadedAt:new Date().toISOString(),repStart:starts[0]||null,repEnd:ends[ends.length-1]||null,rows:x.rows};
+        state.month=x.month;
+      }
+      await saveData(d=>{d.reports=d.reports||{};Object.assign(d.reports,docs);},"Informe "+Object.keys(docs).join(", "));
+      if($("uProj").value!=="auto")state.proj=$("uProj").value;
+      closeDlg();render();
+    }catch(e){$("uSave").disabled=false;$("uPrev").insertAdjacentHTML("beforeend",`<div class="msg bad">No se pudo guardar (${esc(e.code||e.message)}).</div>`);}
+  };
+}
 
 function aiText(){
   const month=state.month,proj=state.proj;const reps=reportsFor(month,proj);const rows=rowsOf(reps);const a=agg(rows);const bud=budgetFor(month,proj);
@@ -626,22 +766,20 @@ function aiText(){
 }
 function openText(){
   const t=aiText();
-  openDlg(`<h2>Resumen en texto</h2><p class="note">Resumen del proyecto y mes seleccionados.</p><textarea id="tTxt" readonly></textarea><div id="tMsg"></div><div class="row-end"><button type="button" id="tClose">Cerrar</button><button type="button" class="primary" id="tCopy">Copiar</button></div>`);
+  openDlg(`<h2>Resumen en texto</h2><p class="note">Resumen del proyecto y mes seleccionados, listo para copiar.</p><textarea id="tTxt" readonly></textarea><div id="tMsg"></div><div class="row-end"><button type="button" id="tClose">Cerrar</button><button type="button" class="primary" id="tCopy">Copiar</button></div>`);
   $("tTxt").value=t;$("tClose").onclick=closeDlg;
   $("tCopy").onclick=()=>{navigator.clipboard.writeText(t).then(()=>{$("tMsg").innerHTML=`<div class="msg ok">Copiado.</div>`;}).catch(()=>{const ta=$("tTxt");ta.focus();ta.select();$("tMsg").innerHTML=`<div class="msg warn">Selecciónalo y cópialo con Ctrl+C.</div>`;});};
 }
-$("btnText").onclick=openText;
+$("btnBudget").onclick=openBudget;$("btnUpload").onclick=openUpload;$("btnText").onclick=openText;$("btnGh").onclick=openGh;
 
 /* ---------- data ---------- */
 render();
 (async()=>{
-  try{
-    const r=await fetch("data.json?v="+Date.now(),{cache:"no-store"});
-    if(!r.ok)throw new Error(r.status);
-    const d=await r.json();
-    if(Array.isArray(d.projects)&&d.projects.length)state.projects=d.projects;
-    state.reports=d.reports||{};state.budgets=d.budgets||{};state.analyses=d.analyses||{};
-  }catch(e){$("body").insertAdjacentHTML("beforebegin",`<div class="card msg bad">No se pudieron cargar los datos (data.json).</div>`);}
+  setWrite(false);
+  let loaded=false;
+  if(ghToken){try{const {data}=await ghGet();applyData(data);setWrite(true);loaded=true;}catch(e){}}
+  if(!loaded){try{const r=await fetch("data.json?v="+Date.now(),{cache:"no-store"});if(!r.ok)throw new Error(r.status);applyData(await r.json());}
+    catch(e){$("body").insertAdjacentHTML("beforebegin",`<div class="card msg bad">No se pudieron cargar los datos (data.json).</div>`);}}
   state.ready=true;render();
 })();
 })();
