@@ -614,7 +614,7 @@ function openAi(){
   $("aSave").onclick=async()=>{
     const t=$("aTxt").value.trim();$("aSave").disabled=true;
     const d=new Date();const date=d.getDate()+" de "+MES[d.getMonth()]+" de "+d.getFullYear();
-    try{await saveData(x=>{x.analyses=x.analyses||{};if(t)x.analyses[k]={text:t,date};else delete x.analyses[k];},"Análisis "+k);closeDlg();render();}
+    try{await saveData(x=>{x.analyses=x.analyses||{};if(t)x.analyses[k]={text:t,date,savedAt:new Date().toISOString(),by:"manual"};else delete x.analyses[k];},"Análisis "+k);closeDlg();render();}
     catch(e){$("aSave").disabled=false;$("aMsg").innerHTML=`<div class="msg bad">${esc(e.message)}</div>`;}
   };
 }
