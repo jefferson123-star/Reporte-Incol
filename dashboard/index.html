@@ -338,13 +338,13 @@ function rowsOf(reps){const o=[];for(const r of reps)for(const x of (r.rows||[])
 function budgetFor(month,proj){
   const b=(state.budgets[month]||{}).projects||{};
   const ids=proj==="all"?state.projects.map(p=>p.id):[proj];
-  let budget=0,goal=0,has=0,goalSet=0;
+  let budget=0,goal=0,has=0,goalSet=0,wsum=0;
   const per={};
   for(const id of ids){const x=b[id]||{};const bud=+x.budget||0;let g=+x.goal||0;const t=+x.cplTarget||0;
     if(!g&&bud&&t)g=Math.round(bud/t);
     per[id]={budget:bud,goal:g,cplTarget:t||(bud&&g?bud/g:0)};
-    budget+=bud;goal+=g;if(bud)has++;if(g)goalSet++;}
-  return {budget,goal,cplTarget:goal?budget/goal:0,per,has,ids};
+    budget+=bud;goal+=g;if(bud)has++;if(g)goalSet++;wsum+=g*per[id].cplTarget;}
+  return {budget,goal,cplTarget:goal?(wsum?wsum/goal:budget/goal):0,per,has,ids};
 }
 
 /* ---------- analysis ---------- */
