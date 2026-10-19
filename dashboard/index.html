@@ -140,7 +140,7 @@ textarea{width:100%;min-height:260px;font-family:var(--mono);font-size:12px;back
     <div>
       <div class="kicker">Constructora</div>
       <h1 id="ttl">Incol</h1>
-      <div class="sub">Reporte de campañas digitales · Meta Ads</div>
+      <div class="sub" id="subTtl">Reporte de campañas digitales · Meta Ads</div>
       <div class="budget">
         <div class="lbl">Presupuesto mensual de pauta</div>
         <div class="big" id="bTotal">—</div>
@@ -443,7 +443,8 @@ function render(){
   const left=Math.max(D-day,0);
   // hero
   const scopeName=proj==="all"?"Incol":projName(proj);
-  $("ttl").textContent=scopeName;
+  $("ttl").textContent="Incol";
+  $("subTtl").textContent=(proj==="all"?"Todos los proyectos":"Proyecto "+projName(proj))+" · Reporte de campañas digitales · Meta Ads";
   $("pMonth").textContent=monthLabel(month);
   $("pDate").textContent=lastEnd?`Datos al ${+lastEnd.slice(8,10)} de ${MES3[+lastEnd.slice(5,7)-1]} de ${lastEnd.slice(0,4)}`:"Sin informe cargado";
   if(bud.budget){
