@@ -738,7 +738,15 @@ function openUpload(){
     try{
       if(typeof XLSX==="undefined")throw new Error("No cargó el lector de Excel. Recarga la página.");
       const buf=await f.arrayBuffer();
-      const wb=XLSX.read(buf,{type:"array",cellDates:false});
+      const isText=/[.](csv|txt|tsv)$/i.test(f.name);
+      let wb;
+      if(isText){
+        let t=new TextDecoder("utf-8").decode(buf);
+        if(t.indexOf(String.fromCharCode(0xFFFD))>=0)t=new TextDecoder("windows-1252").decode(buf);
+        if(t.charCodeAt(0)===0xFEFF)t=t.slice(1);
+        t=t.replace(/^sep=.\r?\n/i,"");
+        wb=XLSX.read(t,{type:"string",raw:true});
+      }else wb=XLSX.read(buf,{type:"array",cellDates:false});
       parsed=parseWorkbook(wb);
       if(!parsed.rows.length)throw new Error("El archivo no tiene filas con gasto.");
       preview();
