@@ -560,7 +560,7 @@ function render(){
   </section>
 
   <section class="card" aria-labelledby="hAi">
-    <div class="an-head"><div class="sec-tag" id="hAi">RECOMENDACIONES</div>${state.canWrite?`<button type="button" class="linkbtn" id="btnAi">Editar</button>`:""}</div>
+    <div class="an-head"><div class="sec-tag" id="hAi">RECOMENDACIONES</div>${state.canWrite?`<span style="display:flex;gap:14px;align-items:center"><a class="linkbtn" style="background:var(--accent);padding:5px 12px;border-radius:999px;text-decoration:none" href="https://claude.ai/artifact/FKwkwi2uopheM5d7DkYF7A#${month}_${proj}" target="_blank" rel="noopener">Analizar ahora</a><button type="button" class="linkbtn" id="btnAi">Editar</button></span>`:""}</div>
     ${aiHTML(month,proj)}
   </section>
 
