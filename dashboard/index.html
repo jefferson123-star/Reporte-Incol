@@ -129,7 +129,37 @@ textarea{width:100%;min-height:260px;font-family:var(--mono);font-size:12px;back
 .reports-list{display:grid;gap:6px}
 .rep{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;border-bottom:1px solid var(--line);padding-block:8px}
 .rep .grow{flex:1;min-width:200px}
+/* fechas */
+.dbtn{display:inline-flex;gap:8px;align-items:center;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600}
+.cal-wrap{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px}
+.cal-pre{display:grid;gap:4px;align-content:start}
+.cal-pre button{border-radius:8px;text-align:left;padding:7px 10px;font-weight:500;border-color:transparent;background:var(--panel-2)}
+.cal-pre button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.cal-months{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.cal-nav strong{font-size:14px}
+.cal-nav button{padding:4px 10px;border-radius:8px}
+.cal-nav .sp{width:34px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:3px;text-align:center;font-variant-numeric:tabular-nums}
+.cal-grid .wd{font-size:11px;color:var(--muted);padding:4px 0}
+.cal-grid button{all:unset;cursor:pointer;height:32px;display:grid;place-items:center;font-size:13px;position:relative;border-radius:0}
+.cal-grid button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.cal-grid button.in{background:#dbe7fb}
+.cal-grid button.end{background:#2f6fd6;color:#fff;font-weight:700;border-radius:6px}
+.cal-grid button.in.first{border-radius:6px 0 0 6px}.cal-grid button.in.last{border-radius:0 6px 6px 0}
+.cal-grid button.has::after{content:"";position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:var(--ok)}
+.cal-grid button.end.has::after{background:#fff}
+.cal-grid button.today{text-decoration:underline;text-underline-offset:3px}
+.cal-grid button.out{color:var(--muted);opacity:.55}
+.cal-sel{font-weight:700;font-size:15px}
+.days{display:flex;gap:4px;align-items:flex-end;overflow-x:auto;padding-bottom:4px}
+.dcol{display:grid;gap:3px;justify-items:center;min-width:30px;flex:1;font-variant-numeric:tabular-nums;font-size:11px}
+.dcol .col{width:100%;max-width:26px;background:var(--accent);border-radius:3px 3px 0 0}
+.dcol .col.z{background:var(--line)}
+.dcol .wk{color:var(--muted);font-size:10px}
+tr.wk-row{cursor:pointer}tr.wk-row:hover td{background:var(--panel-2)}tr.wk-row.on td{background:#fff7cc}
 @media (max-width:640px){
+  .cal-wrap{grid-template-columns:1fr}.cal-pre{grid-template-columns:repeat(2,minmax(0,1fr))}.cal-months{grid-template-columns:1fr}
   .hero{grid-template-columns:minmax(0,1fr)}.period{text-align:left}
   .bar-row{grid-template-columns:100px minmax(0,1fr) 84px}
   .prow{grid-template-columns:1fr 1fr}.prow .pn{grid-column:1/-1}
@@ -160,7 +190,7 @@ textarea{width:100%;min-height:260px;font-family:var(--mono);font-size:12px;back
       <h1 id="ttl">Incol</h1>
       <div class="sub" id="subTtl">Reporte de campañas digitales · Meta Ads</div>
       <div class="budget">
-        <div class="lbl">Presupuesto mensual de pauta</div>
+        <div class="lbl" id="bLbl">Presupuesto mensual de pauta</div>
         <div class="big" id="bTotal">—</div>
         <div class="line green" id="bRemain">—</div>
         <div class="line" id="bDaily">—</div>
@@ -177,6 +207,7 @@ textarea{width:100%;min-height:260px;font-family:var(--mono);font-size:12px;back
   <section class="card filters" aria-label="Filtros">
     <span class="lbl">Proyecto</span><div class="chips" id="projChips"></div>
     <span class="lbl">Mes</span><div class="chips" id="monthChips"></div>
+    <span class="lbl">Fechas</span><div class="chips" id="dateChips"></div>
   </section>
 
   <div id="body"></div>
@@ -205,14 +236,17 @@ const dec=v=>v==null||!isFinite(v)?"—":nf2.format(v);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-const state={projects:DEFAULT_PROJECTS,reports:{},budgets:{},analyses:{},proj:"all",month:null,canWrite:false,db:null,ready:false};
+const state={projects:DEFAULT_PROJECTS,reports:{},budgets:{},analyses:{},proj:"all",month:null,range:null,canWrite:false,db:null,ready:false};
 const GH={owner:"jefferson123-star",repo:"Reporte-Incol",path:"dashboard/data.json",branch:"main"};
 let ghToken="";try{ghToken=localStorage.getItem("incol.ghToken")||"";}catch(e){}
 function b64dec(c){const bin=atob(c.replace(/\n/g,""));const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u);}
 function b64enc(str){const u=new TextEncoder().encode(str);let s="";for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
 const ghUrl=()=>`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`;
-const ghHead=()=>({"Authorization":"Bearer "+ghToken,"Accept":"application/vnd.github+json"});
-async function ghGet(){const r=await fetch(ghUrl()+"?ref="+GH.branch+"&t="+Date.now(),{headers:ghHead(),cache:"no-store"});if(!r.ok)throw new Error(r.status===401?"Token inválido o vencido":r.status===404?"Sin acceso al repo con este token":"GitHub respondió "+r.status);const j=await r.json();return {sha:j.sha,data:JSON.parse(b64dec(j.content))};}
+const ghHead=()=>({"Authorization":"Bearer "+ghToken,"Accept":"application/vnd.github.object"});
+async function ghGet(){const r=await fetch(ghUrl()+"?ref="+GH.branch+"&t="+Date.now(),{headers:ghHead(),cache:"no-store"});if(!r.ok)throw new Error(r.status===401?"Token inválido o vencido":r.status===404?"Sin acceso al repo con este token":"GitHub respondió "+r.status);const j=await r.json();let txt;
+  if(j.content&&j.encoding==="base64")txt=b64dec(j.content);
+  else{const r2=await fetch(ghUrl()+"?ref="+GH.branch+"&t="+Date.now(),{headers:{...ghHead(),"Accept":"application/vnd.github.raw"},cache:"no-store"});if(!r2.ok)throw new Error("GitHub respondió "+r2.status);txt=await r2.text();}
+  return {sha:j.sha,data:JSON.parse(txt)};}
 async function saveData(mut,msg){
   if(!ghToken)throw new Error("Conecta GitHub primero");
   for(let attempt=0;attempt<2;attempt++){
@@ -231,6 +265,42 @@ try{state.recHidden=!!localStorage.getItem("incol.recHidden");state.anHidden=!!l
 function monthLabel(m){if(!m)return"—";const [y,mm]=m.split("-");return MES[+mm-1]+" "+y;}
 function monthShort(m){const [y,mm]=m.split("-");return MES3[+mm-1]+" ’"+y.slice(2);}
 function dim(m){const [y,mm]=m.split("-").map(Number);return new Date(y,mm,0).getDate();}
+/* ---------- fechas ---------- */
+const pad=n=>String(n).padStart(2,"0");
+const pD=s=>new Date(s+"T00:00:00Z");
+function addDays(s,n){const d=pD(s);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+function dow(s){return (pD(s).getUTCDay()+6)%7;} /* 0 = lunes */
+function nDays(f,t){return Math.round((pD(t)-pD(f))/864e5)+1;}
+function todayStr(){const t=new Date();return t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate());}
+function addMonths(m,n){let [y,mm]=m.split("-").map(Number);mm+=n;while(mm>12){mm-=12;y++;}while(mm<1){mm+=12;y--;}return y+"-"+pad(mm);}
+function monthsIn(f,t){const o=[];for(let m=f.slice(0,7);m<=t.slice(0,7);m=addMonths(m,1))o.push(m);return o;}
+function dLabel(s,year){return +s.slice(8,10)+" "+MES3[+s.slice(5,7)-1]+(year?" "+s.slice(0,4):"");}
+function rangeLabel(f,t){
+  if(f===t)return dLabel(f,true);
+  if(f.slice(0,7)===t.slice(0,7))return +f.slice(8,10)+" – "+dLabel(t,true);
+  return dLabel(f,f.slice(0,4)!==t.slice(0,4))+" – "+dLabel(t,true);
+}
+function monthRange(m){return {from:m+"-01",to:m+"-"+pad(dim(m))};}
+/* semanas lunes–domingo recortadas al periodo */
+function weeksOf(f,t){const w=[];let s=f;while(s<=t){let e=addDays(s,6-dow(s));if(e>t)e=t;w.push({from:s,to:e});s=addDays(e,1);}return w;}
+function dailyDays(proj){const s=new Set();for(const r of Object.values(state.reports))if(r.daily&&(proj==="all"||r.project===proj))for(const x of r.daily)s.add(x.day);return s;}
+/* filas del periodo elegido: mes completo (como antes) o rango de fechas con datos por día */
+function selection(proj){
+  if(!state.range){const reps=reportsFor(state.month,proj);return {reps,rows:rowsOf(reps),missing:[]};}
+  const {from,to}=state.range,reps=[],rows=[],missing=[];
+  for(const m of monthsIn(from,to))for(const r of reportsFor(m,proj)){
+    if(r.daily){const L=r.daily.filter(x=>x.day>=from&&x.day<=to);if(L.length){reps.push(r);for(const x of L)rows.push({...x,project:r.project});}}
+    else if(r.repStart&&r.repEnd&&r.repStart>=from&&r.repEnd<=to){reps.push(r);for(const x of r.rows||[])rows.push({...x,project:r.project});}
+    else if(!r.repStart||!r.repEnd||(r.repStart<=to&&r.repEnd>=from))missing.push(r);
+  }
+  return {reps,rows,missing};
+}
+function budgetRange(proj,f,t){let budget=0,goal=0;for(let d=f;d<=t;d=addDays(d,1)){const m=d.slice(0,7),b=budgetFor(m,proj),D=dim(m);budget+=b.budget/D;goal+=b.goal/D;}return {budget,goal};}
+function setRange(r){
+  if(r&&r.from>r.to)r={from:r.to,to:r.from};
+  if(r){const m=r.from.slice(0,7),mr=monthRange(m);state.month=m;if(r.from===mr.from&&r.to===mr.to)r=null;}
+  state.range=r;render();
+}
 function projName(id){const p=state.projects.find(p=>p.id===id);return p?p.name:id;}
 
 /* ---------- parsing ---------- */
@@ -255,7 +325,8 @@ const COLS=[
  ["impr",h=>h==="impresiones"],
  ["msgs",h=>h.startsWith("conversaciones con mensajes")],
  ["repStart",h=>h==="inicio del informe"],
- ["repEnd",h=>h==="fin del informe"]
+ ["repEnd",h=>h==="fin del informe"],
+ ["day",h=>h==="dia"||h==="fecha"||h==="day"]
 ];
 function num(v){
   if(v==null||v==="")return null;
@@ -298,6 +369,8 @@ function extract(data,map){
     const adset=String(g(row,"adset")??"").trim();
     if(map.adset!=null&&(!adset||norm(adset)==="all"))continue;
     if(!camp&&!adset)continue;
+    const day=map.day!=null?dateStr(g(row,"day")):null;
+    if(map.day!=null&&!day)continue;
     const spend=num(g(row,"spend"))||0;
     const leads=num(g(row,"leads")),msgs=num(g(row,"msgs")),cpr=num(g(row,"cpr"));
     const rt=String(g(row,"resultType")??"").trim(),nrt=norm(rt);
@@ -318,9 +391,45 @@ function extract(data,map){
     if(spend<=0&&!results&&!clicks)continue;
     out.push({campaign:camp,adset:adset||"(sin conjunto)",ad:String(g(row,"ad")??"").trim()||null,spend,results,kind,resultType:rt||null,
       convRate:conv,clicks:clicks,clicksAll:clicksAll,ctr,impr:impr==null?null:Math.round(impr),imprEst:est,reach:reach==null?null:Math.round(reach),
-      freq,v3s:num(g(row,"v3s")),vavg:num(g(row,"vavg")),repStart:dateStr(g(row,"repStart")),repEnd:dateStr(g(row,"repEnd"))});
+      freq,v3s:num(g(row,"v3s")),vavg:num(g(row,"vavg")),repStart:dateStr(g(row,"repStart")),repEnd:dateStr(g(row,"repEnd")),...(day?{day}:{})});
   }
+  fixKinds(out);
   return out;
+}
+/* un conjunto con días sin resultado hereda el tipo (formulario/WhatsApp) de sus otros días */
+function fixKinds(rows){
+  const k={};
+  for(const r of rows){const id=r.campaign+"|"+r.adset;if(r.kind==="msg")k[id]="msg";else if(r.kind==="lead"&&k[id]!=="msg")k[id]="lead";}
+  for(const r of rows){const id=r.campaign+"|"+r.adset;if(k[id])r.kind=k[id];}
+  return rows;
+}
+const DAILY_KEYS=["day","campaign","adset","spend","results","kind","convRate","clicks","clicksAll","ctr","impr","imprEst","reach","freq","v3s","vavg"];
+function slim(r){const o={};for(const k of DAILY_KEYS){const v=r[k];if(v==null||v===false||v==="")continue;o[k]=typeof v==="number"?Math.round(v*1e4)/1e4:v;}return o;}
+/* suma los días de cada conjunto en una fila por conjunto (el formato de siempre) */
+function rollup(daily){
+  const g={};
+  for(const r of daily){const k=r.campaign+"|"+r.adset;(g[k]=g[k]||[]).push(r);}
+  return Object.values(g).map(L=>{
+    const f=L[0],o={campaign:f.campaign,adset:f.adset,ad:null,spend:0,results:0};
+    const sums={clicks:0,clicksAll:0,impr:0,reach:0,v3s:0},has={};
+    let vW=0,opens=0,lc=0,est=false,kind="other";
+    for(const r of L){
+      o.spend+=r.spend||0;o.results+=r.results||0;
+      for(const k in sums)if(r[k]!=null){sums[k]+=r[k];has[k]=1;}
+      if(r.v3s&&r.vavg!=null)vW+=r.vavg*r.v3s;
+      if(r.imprEst)est=true;
+      if(r.kind==="msg")kind="msg";else if(r.kind==="lead"&&kind!=="msg")kind="lead";
+      if(r.kind==="lead"&&r.convRate>0&&r.results>0){opens+=r.results/r.convRate;lc+=r.results;}
+    }
+    for(const k in sums)o[k]=has[k]?Math.round(sums[k]):null;
+    o.spend=Math.round(o.spend*100)/100;o.kind=kind;o.resultType=null;
+    o.convRate=opens?lc/opens:(kind==="lead"&&L.some(r=>r.convRate!=null)?0:null);
+    o.ctr=o.impr&&o.clicks!=null?o.clicks/o.impr*100:null;
+    o.reach=null;o.freq=null; /* no se pueden sumar día a día */
+    o.vavg=o.v3s?vW/o.v3s:null;o.imprEst=est;
+    const ds=L.map(r=>r.day).sort();o.repStart=ds[0];o.repEnd=ds[ds.length-1];
+    return o;
+  });
 }
 function detectProject(campaign){
   const c=norm(campaign).toUpperCase();
@@ -338,6 +447,7 @@ function agg(rows){
     if(r.v3s){a.v3s+=r.v3s;if(r.vavg!=null)a.vW+=r.vavg*r.v3s;}
     if(r.kind==="lead"&&r.convRate>0&&r.results>0){a.opens+=r.results/r.convRate;a.leadsConv+=r.results;}
   }
+  a.daily=rows.some(r=>r.day);
   a.cpl=a.results?a.spend/a.results:null;
   a.cplLead=a.leads?(a.spend-sumKind(rows,"msg"))/a.leads:null;
   a.ctr=a.impr?a.clicks/a.impr*100:null;
@@ -354,7 +464,7 @@ function sumKind(rows,k){return rows.filter(r=>r.kind===k).reduce((s,r)=>s+(r.sp
 function reportsFor(month,proj){
   return Object.values(state.reports).filter(r=>r.month===month&&(proj==="all"||r.project===proj));
 }
-function rowsOf(reps){const o=[];for(const r of reps)for(const x of (r.rows||[]))o.push({...x,project:r.project});return o;}
+function rowsOf(reps){const o=[];for(const r of reps)for(const x of (r.daily||r.rows||[]))o.push({...x,project:r.project});return o;}
 function budgetFor(month,proj){
   const b=(state.budgets[month]||{}).projects||{};
   const ids=proj==="all"?state.projects.map(p=>p.id):[proj];
@@ -373,11 +483,11 @@ function diagnose(a){
   if(a.ctr!=null)f.push({k:"CTR único",v:pct(a.ctr),s:a.ctr>=1.5?"ok":a.ctr>=1?"warn":"bad",t:a.ctr>=1.5?"saludable":a.ctr>=1?"aceptable":"bajo"});
   if(a.conv!=null)f.push({k:"Tasa conversión formulario",v:pct(a.conv),s:a.conv>=20?"ok":a.conv>=10?"warn":"bad",t:a.conv>=20?"saludable":a.conv>=10?"baja":"muy baja"});
   if(a.p3s!=null)f.push({k:"% Reprod. 3 seg",v:pct(a.p3s),s:a.p3s>=25?"ok":a.p3s>=15?"warn":"bad",t:a.p3s>=25?"saludable":"baja"});
-  if(a.freq!=null)f.push({k:"Frecuencia",v:dec(a.freq),s:a.freq<=2.5?"ok":a.freq<=3.5?"warn":"bad",t:a.freq<=2.5?"saludable":a.freq<=3.5?"vigilar":"alta"});
+  if(a.freq!=null&&!a.daily)f.push({k:"Frecuencia",v:dec(a.freq),s:a.freq<=2.5?"ok":a.freq<=3.5?"warn":"bad",t:a.freq<=2.5?"saludable":a.freq<=3.5?"vigilar":"alta"});
   const pr=[];
   if(a.ctr!=null)pr.push(`el CTR único está en ${pct(a.ctr)}, ${a.ctr>=1.5?"por encima del umbral saludable (1%–1,5%)":a.ctr>=1?"dentro del umbral (1%–1,5%)":"por debajo del umbral saludable (1%–1,5%)"}`);
   if(a.conv!=null)pr.push(`la tasa de conversión del formulario es ${pct(a.conv)}, ${a.conv>=20?"en el rango 20%–30%":"baja frente al rango 20%–30%"}`);
-  if(a.freq!=null)pr.push(`la frecuencia es ${dec(a.freq)}, ${a.freq<=2.5?"adecuada":a.freq<=3.5?"para vigilar":"alta"}`);
+  if(a.freq!=null&&!a.daily)pr.push(`la frecuencia es ${dec(a.freq)}, ${a.freq<=2.5?"adecuada":a.freq<=3.5?"para vigilar":"alta"}`);
   if(a.p3s!=null)pr.push(`la reproducción a 3 s es ${pct(a.p3s)}, ${a.p3s>=25?"en rango":"baja"}`);
   const prose=pr.map((x,i)=>(i?x.charAt(0).toUpperCase()+x.slice(1):x)).join(". ")+(pr.length?".":"");
   let head,text,todo,actions,todoText;
@@ -393,7 +503,7 @@ function diagnose(a){
     todo="Optimiza el formulario y el destino";
     todoText=`${a.ctr!=null?`El CTR único (${pct(a.ctr)}) atrae clics, pero l`:"L"}a conversión del formulario (${pct(a.conv)}) está por debajo del rango 20%–30%. Prioriza el post-clic antes de subir presupuesto.`;
     actions=["Simplificar campos y fricción del formulario","Revisar claridad de la oferta (precio, subsidio, entrega)","Probar CTA y prueba social en el formulario"];
-  }else if(a.freq!=null&&a.freq>3.5){
+  }else if(a.freq!=null&&!a.daily&&a.freq>3.5){
     head="El público se está saturando";
     text=`La frecuencia va en ${dec(a.freq)}: las mismas personas ven el anuncio demasiadas veces y el costo tiende a subir.`;
     todo="Refresca creativos o amplía públicos";
@@ -460,11 +570,28 @@ function render(){
     b.onclick=()=>{state.proj=p.id;try{localStorage.setItem("incol.proj",p.id);}catch(e){}render();};pc.appendChild(b);
   });
   const mc=$("monthChips");mc.innerHTML="";
-  (months.length?months:[month]).forEach(m=>{const b=document.createElement("button");b.type="button";b.className="chip";b.setAttribute("aria-pressed",String(m===month));b.textContent=monthShort(m);b.onclick=()=>{state.month=m;render();};mc.appendChild(b);});
+  (months.length?months:[month]).forEach(m=>{const b=document.createElement("button");b.type="button";b.className="chip";b.setAttribute("aria-pressed",String(m===month));b.textContent=monthShort(m);b.onclick=()=>{state.month=m;state.range=null;render();};mc.appendChild(b);});
+  // fechas: mes completo, semanas con datos por día y calendario
+  const R=state.range,mr=monthRange(month),ddays=dailyDays(proj);
+  const dc=$("dateChips");dc.innerHTML="";
+  const chip=(label,on,fn)=>{const b=document.createElement("button");b.type="button";b.className="chip";b.setAttribute("aria-pressed",String(on));b.textContent=label;b.onclick=fn;dc.appendChild(b);return b;};
+  chip("Mes completo",!R,()=>setRange(null));
+  let matched=!R;
+  weeksOf(mr.from,mr.to).forEach((w,i)=>{
+    if(![...ddays].some(d=>d>=w.from&&d<=w.to))return;
+    const on=!!R&&R.from===w.from&&R.to===w.to;if(on)matched=true;
+    chip(`Sem ${i+1} · ${+w.from.slice(8)}–${+w.to.slice(8)}`,on,()=>setRange(w));
+  });
+  if(!matched)chip(rangeLabel(R.from,R.to),true,openCal);
+  chip("Elegir fechas…",false,openCal).classList.add("dbtn");
 
-  const reps=reportsFor(month,proj);
-  const rows=rowsOf(reps);
+  const sel=selection(proj);
+  const reps=sel.reps,rows=sel.rows;
   const a=agg(rows);
+  const nR=R?nDays(R.from,R.to):0;
+  const dataDays=new Set(rows.map(r=>r.day).filter(Boolean));
+  const pb=R?budgetRange(proj,R.from,R.to):null;
+  const effBudget=R?pb.budget:null;
   const bud=budgetFor(month,proj);
   const D=dim(month);
   const ends=reps.map(r=>r.repEnd).filter(Boolean).sort();
@@ -477,9 +604,23 @@ function render(){
   const scopeName=proj==="all"?"Incol":projName(proj);
   $("ttl").textContent="Incol";
   $("subTtl").textContent=(proj==="all"?"Todos los proyectos":"Proyecto "+projName(proj))+" · Reporte de campañas digitales · Meta Ads";
-  $("pMonth").textContent=monthLabel(month);
-  $("pDate").textContent=lastEnd?`Datos al ${+lastEnd.slice(8,10)} de ${MES3[+lastEnd.slice(5,7)-1]} de ${lastEnd.slice(0,4)}`:"Sin informe cargado";
-  if(bud.budget){
+  $("pMonth").textContent=R?rangeLabel(R.from,R.to):monthLabel(month);
+  $("pMonth").style.textTransform=R?"none":"";
+  const lastDay=[...dataDays].sort().pop();
+  $("pDate").textContent=R?`${nR} día${nR===1?"":"s"}${dataDays.size?` · ${dataDays.size} con datos${lastDay&&lastDay<R.to?" (hasta el "+dLabel(lastDay)+")":""}`:""}`:lastEnd?`Datos al ${+lastEnd.slice(8,10)} de ${MES3[+lastEnd.slice(5,7)-1]} de ${lastEnd.slice(0,4)}`:"Sin informe cargado";
+  $("bLbl").textContent=R?"Presupuesto del periodo (proporcional)":"Presupuesto mensual de pauta";
+  if(R){
+    const dd=dataDays.size||nR;
+    if(pb.budget){
+      $("bTotal").textContent=money(pb.budget);
+      $("bRemain").textContent=`Invertido ${money(a.spend)} · ${pct(a.spend/pb.budget*100)} de lo proporcional`;
+      $("bDaily").textContent=`Promedio diario ${money(a.spend/dd)} · presupuesto diario ${money(pb.budget/nR)}`;
+    }else{
+      $("bTotal").textContent="Sin presupuesto registrado";
+      $("bRemain").textContent=`Invertido ${money(a.spend)}`;
+      $("bDaily").textContent=`Promedio diario ${money(a.spend/dd)}`;
+    }
+  }else if(bud.budget){
     $("bTotal").textContent=money(bud.budget);
     $("bRemain").textContent=`Restante ${money(bud.budget-a.spend)} · Invertido ${money(a.spend)}`;
     $("bDaily").textContent=`Diario necesario ${money(left?(bud.budget-a.spend)/left:0)} · ${left} días restantes`;
@@ -490,14 +631,16 @@ function render(){
   }
   const expected=bud.goal?bud.goal*day/D:null;
   const projected=day?a.results/day*D:null;
-  $("bGoal").textContent=bud.goal?`Meta ${int(bud.goal)} resultados · CPL obj. ${money(bud.cplTarget)} · ${a.results>=expected?"Al día con el ritmo":"Faltan "+int(expected-a.results)+" al ritmo"}`:"Sin meta de resultados";
+  $("bGoal").textContent=R?(pb.goal?`Meta del periodo ~${int(pb.goal)} resultados · van ${int(a.results)} · CPL obj. ${money(bud.cplTarget)}`:"Sin meta de resultados"):bud.goal?`Meta ${int(bud.goal)} resultados · CPL obj. ${money(bud.cplTarget)} · ${a.results>=expected?"Al día con el ritmo":"Faltan "+int(expected-a.results)+" al ritmo"}`:"Sin meta de resultados";
   const withData=new Set(reps.map(r=>r.project)).size;
-  $("bScope").textContent=proj==="all"?`${withData} de ${state.projects.length} proyectos con informe · ${monthLabel(month)}`:`${reps.length?"Informe cargado":"Sin informe"} · ${monthLabel(month)}`;
+  const scopeP=R?rangeLabel(R.from,R.to):monthLabel(month);
+  $("bScope").textContent=proj==="all"?`${withData} de ${state.projects.length} proyectos con datos · ${scopeP}`:`${reps.length?"Con datos":"Sin datos"} · ${scopeP}`;
 
   const body=$("body");
   if(!state.ready){body.innerHTML=`<div class="card empty">Cargando datos…</div>`;return;}
+  const missHTML=sel.missing.length?`<div class="card msg warn">${sel.missing.length===1?"Un informe no tiene":sel.missing.length+" informes no tienen"} desglose por día y no se puede${sel.missing.length===1?"":"n"} recortar a estas fechas: ${esc(sel.missing.map(r=>projName(r.project)+" ("+(r.repStart?rangeLabel(r.repStart,r.repEnd):monthLabel(r.month))+")").join(", "))}. Para verlo por semanas, expórtalo de nuevo con Desglose › Por tiempo › Día.</div>`:"";
   if(!rows.length){
-    body.innerHTML=`<div class="card empty"><strong>No hay informe de ${esc(scopeName)} para ${esc(monthLabel(month))}.</strong><span>${state.canWrite?"Sube el Excel exportado de Meta Ads y el dashboard se arma solo.":"Aún no se ha cargado el informe de este mes."}</span>${state.canWrite?`<button type="button" class="primary" id="emptyUp">Cargar informe</button>`:""}</div>`+reportsListHTML();
+    body.innerHTML=missHTML+`<div class="card empty"><strong>No hay datos de ${esc(scopeName)} para ${esc(R?rangeLabel(R.from,R.to):monthLabel(month))}.</strong><span>${state.canWrite?"Sube el Excel exportado de Meta Ads y el dashboard se arma solo.":"Aún no se ha cargado el informe de este mes."}</span>${state.canWrite?`<button type="button" class="primary" id="emptyUp">Cargar informe</button>`:""}</div>`+reportsListHTML();
     if($("emptyUp"))$("emptyUp").onclick=openUpload;bindReportList();return;
   }
   const dg=diagnose(a);
@@ -507,14 +650,14 @@ function render(){
   const tiles=[
     ["Resultados",int(a.results),a.msgs?`${int(a.leads)} leads · ${int(a.msgs)} conversaciones`:"Clientes potenciales","--s1"],
     ["Coste por resultado",money(a.cpl),bud.cplTarget?`Objetivo ${money(bud.cplTarget)}`:"","--s2"],
-    ["Importe gastado",money(a.spend),bud.budget?`${pct(a.spend/bud.budget*100)} del presupuesto`:"","--s3"],
+    ["Importe gastado",money(a.spend),R?(effBudget?`${pct(a.spend/effBudget*100)} del presupuesto proporcional`:""):bud.budget?`${pct(a.spend/bud.budget*100)} del presupuesto`:"","--s3"],
     ["Tasa conversión de CP – formulario",pct(a.conv),"","--s1"],
     ["CTR único (enlace)",pct(a.ctr),"","--s2"],
     ["Clics únicos en el enlace",int(a.clicks),"","--s6"],
     ["% Reprod. 3 segundos",pct(a.p3s),"","--s3"],
     ["Tiempo medio de reproducción",a.vavg==null?"—":dec(a.vavg)+" s","","--s5"],
-    ["Frecuencia",dec(a.freq),"","--s4"],
-    ["Alcance",(a.est?"≈ ":"")+int(a.reach),a.est?"Estimado desde CTR y frecuencia":"","--s1"],
+    [a.daily?"Frecuencia diaria promedio":"Frecuencia",dec(a.freq),a.daily?"Promedio de la frecuencia de cada día":"","--s4"],
+    ["Alcance",(a.est||a.daily?"≈ ":"")+int(a.reach),a.daily?"Suma del alcance de cada día (cuenta repetidos)":a.est?"Estimado desde CTR y frecuencia":"","--s1"],
     ["Impresiones",(a.est?"≈ ":"")+int(a.impr),a.est?"Estimado desde clics y CTR":"","--s5"],
     ["CPM (coste por 1000 impr.)",(a.est?"≈ ":"")+money(a.cpm),"","--s6"]
   ];
@@ -523,7 +666,7 @@ function render(){
   const spendProj=day?a.spend/day*D:null;
   const maxS=Math.max(bud.budget||0,spendProj||0,a.spend,1);
   // per project table
-  const perProj=state.projects.map(p=>{const rr=rowsOf(reportsFor(month,p.id));const x=agg(rr);const b=budgetFor(month,p.id);return {p,x,b,has:rr.length};});
+  const perProj=state.projects.map(p=>{const rr=selection(p.id).rows;const x=agg(rr);const b=budgetFor(month,p.id);if(R){const q=budgetRange(p.id,R.from,R.to);b.budget=q.budget;}return {p,x,b,has:rr.length};});
   // history
   const hist=allMonths().slice().reverse().map(m=>{const x=agg(rowsOf(reportsFor(m,proj)));return {m,x};}).filter(h=>h.x.n);
   const maxH=Math.max(...hist.map(h=>h.x.results),1);
@@ -535,6 +678,25 @@ function render(){
     else if(!ref){c.st="—";c.cls="mute";}
     else{const r=c.a.cpl/ref;[c.st,c.cls]=r<=0.8?["Rinde bien","ok"]:r<=1?["En rango","ok"]:r<=1.2?["Revisar","warn"]:["Costosa","bad"];}
     return c;}).sort((p,q)=>q.a.spend-p.a.spend);
+  // por semana y por día (solo informes con desglose por día)
+  const span=R||mr;
+  const byDay={};for(const r of rows)if(r.day)(byDay[r.day]=byDay[r.day]||[]).push(r);
+  const hasDaily=Object.keys(byDay).length>0;
+  const partialDaily=hasDaily&&rows.some(r=>!r.day);
+  const dAgg=[];for(let d=span.from;d<=span.to;d=addDays(d,1))dAgg.push({d,x:agg(byDay[d]||[])});
+  const maxD=Math.max(...dAgg.map(o=>o.x.results),1);
+  const wkRows=weeksOf(span.from,span.to).map(w=>{const L=rows.filter(r=>r.day&&r.day>=w.from&&r.day<=w.to);return {w,x:agg(L),n:L.length};}).filter(o=>o.n);
+  wkRows.forEach((o,i)=>{const pv=wkRows[i-1];o.dc=pv&&pv.x.cpl&&o.x.cpl?(o.x.cpl/pv.x.cpl-1)*100:null;});
+  const dayHTML=hasDaily?`<section class="card" aria-labelledby="hWk">
+    <div class="sec-tag" id="hWk">POR SEMANA Y POR DÍA</div>
+    ${partialDaily?`<p class="msg warn">Solo incluye los proyectos cargados con desglose por día.</p>`:""}
+    ${wkRows.length>1||!R?`<div class="tbl-wrap"><table><thead><tr><th>Semana (lun–dom)</th><th>Días</th><th>Inversión</th><th>Result.</th><th>Costo/result.</th><th>vs sem. anterior</th><th>Clics</th><th>CTR</th><th>Conv.</th></tr></thead><tbody>
+    ${wkRows.map(o=>{const on=R&&R.from===o.w.from&&R.to===o.w.to;return `<tr class="wk-row${on?" on":""}" data-f="${o.w.from}" data-t="${o.w.to}" tabindex="0"><td class="l"><strong>${esc(rangeLabel(o.w.from,o.w.to))}</strong></td><td>${new Set(rows.filter(r=>r.day&&r.day>=o.w.from&&r.day<=o.w.to).map(r=>r.day)).size}</td><td>${money(o.x.spend)}</td><td>${int(o.x.results)}</td><td>${money(o.x.cpl)}</td><td>${o.dc==null?"—":`<span class="${o.dc<=0?"green":""}" style="${o.dc>0?"color:var(--bad);font-weight:600":""}">${o.dc>0?"+":""}${nf0.format(Math.round(o.dc))}%</span>`}</td><td>${int(o.x.clicks)}</td><td>${pct(o.x.ctr)}</td><td>${pct(o.x.conv)}</td></tr>`;}).join("")}
+    </tbody></table></div><p class="note">Toca una semana para ver solo esas fechas.</p>`:""}
+    <div class="lbl" style="margin:14px 0 8px">Resultados por día</div>
+    <div class="days">${dAgg.map(o=>`<div class="dcol" title="${esc(dLabel(o.d,true))} · ${money(o.x.spend)} · ${int(o.x.results)} resultados${o.x.results?" · costo "+money(o.x.cpl):""}"><span>${o.x.n?int(o.x.results):""}</span><div class="col ${o.x.results?"":"z"}" style="height:${o.x.n?Math.max(3,o.x.results/maxD*110):0}px"></div><span>${+o.d.slice(8)}</span><span class="wk">${"LMXJVSD"[dow(o.d)]}</span></div>`).join("")}</div>
+    <p class="note">Pasa el cursor (o mantén pulsado) sobre un día para ver inversión y costo. Clics y alcance se suman día a día, así que en periodos largos son aproximados.</p>
+  </section>`:(R?"":`<p class="note" style="margin:0 4px">Para ver el informe por semanas o fechas, expórtalo desde Meta con Desglose › Por tiempo › Día.</p>`);
   const best=at.list.filter(x=>x.a.results>0&&x.kind==="lead").sort((p,q)=>p.a.cpl-q.a.cpl).slice(0,3);
 
   body.innerHTML=`
@@ -553,8 +715,9 @@ function render(){
         <div class="an-kv"><span class="lbl">Gasto</span><strong>${money(a.spend)}</strong></div>
         <div class="an-kv"><span class="lbl">Resultados</span><strong>${int(a.results)} ${a.msgs?"resultados":"leads"}</strong></div>
         <div class="an-kv"><span class="lbl">CPL</span><strong>${money(a.cpl)}${bud.cplTarget?` vs obj. ${money(bud.cplTarget)}`:""}</strong></div>
-        <div class="an-sep"><div class="lbl">Ritmo del mes</div>
-          ${bud.goal?`<p>A día ${day}/${D} deberían ir ~${int(expected)}; van ${int(a.results)}.</p>${a.results<expected?`<p>Faltan ${int(expected-a.results)} al ritmo.</p>`:`<p>Al día con el ritmo.</p>`}<p>Proyección a fin de mes: ~${int(projected)} vs meta ${int(bud.goal)}.</p>`
+        <div class="an-sep"><div class="lbl">${R?"Ritmo del periodo":"Ritmo del mes"}</div>
+          ${R?`<p>${dataDays.size||nR} día${(dataDays.size||nR)===1?"":"s"}: en promedio ${dec(a.results/(dataDays.size||nR))} resultados y ${money(a.spend/(dataDays.size||nR))} de inversión por día.</p>${pb.goal?`<p>Meta proporcional del periodo ~${int(pb.goal)}; van ${int(a.results)}.</p>`:""}`
+          :bud.goal?`<p>A día ${day}/${D} deberían ir ~${int(expected)}; van ${int(a.results)}.</p>${a.results<expected?`<p>Faltan ${int(expected-a.results)} al ritmo.</p>`:`<p>Al día con el ritmo.</p>`}<p>Proyección a fin de mes: ~${int(projected)} vs meta ${int(bud.goal)}.</p>`
           :`<p>Proyección a fin de mes: ~${int(projected)} resultados con ${money(spendProj)} de inversión.</p><p class="muted">Sin meta registrada.</p>`}
         </div>
       </div>
@@ -574,8 +737,9 @@ function render(){
     </div>
   </section>
 
+  ${missHTML}
   <div class="two">
-    <section class="card" aria-labelledby="hPr">
+    <section class="card" aria-labelledby="hPr" ${R?"hidden":""}>
       <div class="sec-tag" id="hPr">PROYECCIÓN</div>
       <div class="lbl" style="margin-bottom:8px">Resultados</div>
       <div class="bars">
@@ -604,25 +768,26 @@ function render(){
       ${hist.length>1?`<div class="lbl" style="margin:16px 0 8px">Resultados por mes</div><div class="hist">${hist.map(h=>`<div class="hcol ${h.m===month?"cur":""}"><span>${int(h.x.results)}</span><div class="col" style="height:${Math.max(4,h.x.results/maxH*110)}px"></div><span>${monthShort(h.m)}</span><span class="muted">${money(h.x.cpl)}</span></div>`).join("")}</div>`:""}
     </section>
   </div>
+  ${dayHTML}
 
   ${proj==="all"?`<section class="card" aria-labelledby="hPp">
     <div class="sec-tag" id="hPp">POR PROYECTO</div>
     <div class="tbl-wrap"><table><thead><tr><th>Proyecto</th><th>Presupuesto</th><th>Invertido</th><th>% usado</th><th>Resultados</th><th>CPL</th><th>CPL obj.</th><th>Proyección</th><th class="l">Estado</th></tr></thead><tbody>
-    ${perProj.map(({p,x,b,has})=>{const pj=day&&has?x.results/day*D:null;const st=!has?["mute","Sin informe"]:!b.cplTarget?["mute","Sin objetivo"]:x.cpl<=b.cplTarget?["ok","En objetivo"]:x.cpl<=b.cplTarget*1.15?["warn","Revisión"]:["bad","Fuera de objetivo"];
+    ${perProj.map(({p,x,b,has})=>{const pj=!R&&day&&has?x.results/day*D:null;const st=!has?["mute","Sin informe"]:!b.cplTarget?["mute","Sin objetivo"]:x.cpl<=b.cplTarget?["ok","En objetivo"]:x.cpl<=b.cplTarget*1.15?["warn","Revisión"]:["bad","Fuera de objetivo"];
       return `<tr><td class="l"><a href="#" data-proj="${esc(p.id)}" style="color:inherit;font-weight:700">${esc(p.name)}</a></td><td>${b.budget?money(b.budget):"—"}</td><td>${has?money(x.spend):"—"}</td><td>${b.budget&&has?pct(x.spend/b.budget*100):"—"}</td><td>${has?int(x.results):"—"}</td><td>${has?money(x.cpl):"—"}</td><td>${b.cplTarget?money(b.cplTarget):"—"}</td><td>${pj!=null?int(pj):"—"}</td><td class="l"><span class="pill ${st[0]}">${st[1]}</span></td></tr>`;}).join("")}
     </tbody></table></div></section>`:""}
 
   <section class="card" aria-labelledby="hAs">
     <div class="an-head"><div class="sec-tag" id="hAs">CAMPAÑAS Y CONJUNTOS</div><button type="button" class="linkbtn" id="campAll">${state.campCollapsed&&state.campCollapsed.size?"Expandir todo":"Contraer todo"}</button></div>
     <p class="note" style="margin:10px 0">Referencia de costo: el CPL objetivo del proyecto si está registrado; si no, el promedio del periodo (leads ${money(at.avg.lead)}${at.avg.msg?` · conversaciones ${money(at.avg.msg)}`:""}). Toca una campaña para ver u ocultar sus conjuntos.</p>
-    <div class="tbl-wrap"><table><thead><tr><th>Campaña / conjunto</th><th>Gasto</th><th>Result.</th><th>Costo/result.</th><th>Conv.</th><th>Clics</th><th>CTR</th><th>CPC</th><th>Frec.</th><th class="l">Estado</th></tr></thead><tbody>
+    <div class="tbl-wrap"><table><thead><tr><th>Campaña / conjunto</th><th>Gasto</th><th>Result.</th><th>Costo/result.</th><th>Conv.</th><th>Clics</th><th>CTR</th><th>CPC</th><th>${a.daily?"Frec. diaria":"Frec."}</th><th class="l">Estado</th></tr></thead><tbody>
     ${camps.map(c=>{const open=!(state.campCollapsed&&state.campCollapsed.has(c.key));return `<tr class="camp-row" data-camp="${esc(c.key)}"><td class="name"><button type="button" class="camp-btn" aria-expanded="${open}"><span class="caret">${open?"▾":"▸"}</span><span><strong>${esc(c.campaign)}</strong><small>${proj==="all"?esc(projName(c.project))+" · ":""}${c.kind==="msg"?"WhatsApp":"Formulario"} · ${c.items.length} conjunto${c.items.length===1?"":"s"}</small></span></button></td><td>${money(c.a.spend)}</td><td>${int(c.a.results)}</td><td>${money(c.a.cpl)}</td><td>${pct(c.a.conv)}</td><td>${int(c.a.clicks)}</td><td>${pct(c.a.ctr)}</td><td>${money(c.a.cpc)}</td><td>${dec(c.a.freq)}</td><td class="l"><span class="pill ${c.cls}">${c.st}</span></td></tr>`+(open?c.items.map(x=>`<tr class="set-row"><td class="name"><span class="set-name">${esc(x.adset)}</span></td><td>${money(x.a.spend)}</td><td>${int(x.a.results)}</td><td>${money(x.a.cpl)}</td><td>${pct(x.a.conv)}</td><td>${int(x.a.clicks)}</td><td>${pct(x.a.ctr)}</td><td>${money(x.a.cpc)}</td><td>${dec(x.a.freq)}</td><td class="l"><span class="pill ${x.cls}">${x.rec}</span>${x.why?`<div class="note">${esc(x.why)}</div>`:""}</td></tr>`).join(""):"");}).join("")}
     </tbody></table></div>
   </section>
   ${state.canWrite?reportsListHTML():""}
   <section class="card" aria-labelledby="hAi">
     <div class="an-head"><div class="sec-tag" id="hAi">RECOMENDACIONES</div><span style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">${state.canWrite?`<a class="linkbtn" style="background:var(--accent);padding:5px 12px;border-radius:999px;text-decoration:none" href="https://claude.ai/artifact/FKwkwi2uopheM5d7DkYF7A#${month}_${proj}" target="_blank" rel="noopener">Analizar ahora</a><button type="button" class="linkbtn" id="btnAi">Editar</button>`:""}<button type="button" class="linkbtn" id="recToggle">${state.recHidden?"Mostrar":"Ocultar"}</button></span></div>
-    <div ${state.recHidden?"hidden":""}>${aiHTML(month,proj)}</div>
+    <div ${state.recHidden?"hidden":""}>${R?`<p class="note" style="margin:10px 0 0">Estas recomendaciones son del mes completo de ${esc(monthLabel(month))}; las cifras de arriba son del ${esc(rangeLabel(R.from,R.to))}.</p>`:""}${aiHTML(month,proj)}</div>
   </section>`;
   body.querySelectorAll(".camp-row").forEach(tr=>tr.onclick=()=>{state.campCollapsed=state.campCollapsed||new Set();const k=tr.dataset.camp;state.campCollapsed.has(k)?state.campCollapsed.delete(k):state.campCollapsed.add(k);render();});
   $("campAll").onclick=()=>{state.campCollapsed=state.campCollapsed||new Set();if(state.campCollapsed.size)state.campCollapsed.clear();else camps.forEach(c=>state.campCollapsed.add(c.key));render();};
@@ -630,6 +795,7 @@ function render(){
   if($("btnAi"))$("btnAi").onclick=openAi;
   if($("recToggle"))$("recToggle").onclick=()=>{state.recHidden=!state.recHidden;try{localStorage.setItem("incol.recHidden",state.recHidden?"1":"");}catch(e){}render();};
   body.querySelectorAll("[data-proj]").forEach(el=>el.onclick=e=>{e.preventDefault();state.proj=el.dataset.proj;render();window.scrollTo({top:0,behavior:"smooth"});});
+  body.querySelectorAll("tr.wk-row").forEach(tr=>{const go=()=>setRange({from:tr.dataset.f,to:tr.dataset.t});tr.onclick=go;tr.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};});
   bindReportList();
 }
 function md(t){
@@ -692,7 +858,7 @@ function setWrite(on){state.canWrite=on;["btnBudget","btnUpload"].forEach(i=>$(i
 function reportsListHTML(){
   const reps=Object.entries(state.reports).sort((a,b)=>(b[1].month+b[1].project).localeCompare(a[1].month+a[1].project));
   if(!reps.length)return"";
-  return `<section class="card" aria-labelledby="hRl"><div class="sec-tag" id="hRl">INFORMES CARGADOS</div><div class="reports-list">${reps.map(([id,r])=>`<div class="rep" data-rep="${esc(id)}"><span class="grow"><strong>${esc(projName(r.project))}</strong> · ${esc(monthLabel(r.month))}<br><span class="note">${esc(r.fileName||"")} · ${int((r.rows||[]).length)} conjuntos · ${esc(r.repStart||"")} a ${esc(r.repEnd||"")}${r.uploadedAt?" · cargado "+esc(r.uploadedAt.slice(0,10)):""}</span></span>${state.canWrite?`<button type="button" class="del">Eliminar</button>`:""}</div>`).join("")}</div></section>`;
+  return `<section class="card" aria-labelledby="hRl"><div class="sec-tag" id="hRl">INFORMES CARGADOS</div><div class="reports-list">${reps.map(([id,r])=>`<div class="rep" data-rep="${esc(id)}"><span class="grow"><strong>${esc(projName(r.project))}</strong> · ${esc(monthLabel(r.month))}<br><span class="note">${esc(r.fileName||"")} · ${int((r.rows||[]).length)} conjuntos · ${esc(r.repStart||"")} a ${esc(r.repEnd||"")}${r.daily?" · por día":""}${r.uploadedAt?" · cargado "+esc(r.uploadedAt.slice(0,10)):""}</span></span>${state.canWrite?`<button type="button" class="del">Eliminar</button>`:""}</div>`).join("")}</div></section>`;
 }
 function bindReportList(){
   document.querySelectorAll(".rep .del").forEach(btn=>{
@@ -710,6 +876,52 @@ function openDlg(html){const ov=$("overlay");ov.innerHTML=`<div class="dlg" role
 function closeDlg(){const ov=$("overlay");ov.hidden=true;ov.innerHTML="";}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)closeDlg();});
 
+function openCal(){
+  const td=todayStr(),mr=monthRange(state.month),dd=dailyDays(state.proj);
+  let sel=state.range?{...state.range}:{...mr},picking=false;
+  let view=sel.from.slice(0,7);
+  const lastData=[...dd].sort().pop()||td;
+  const thisMon=addDays(td,-dow(td)),lastM=addMonths(td.slice(0,7),-1);
+  const presets=[
+    ["Mes completo",mr],
+    ["Esta semana",{from:thisMon,to:td}],
+    ["Semana pasada",{from:addDays(thisMon,-7),to:addDays(thisMon,-1)}],
+    ["Últimos 7 días",{from:addDays(td,-7),to:addDays(td,-1)}],
+    ["Últimos 14 días",{from:addDays(td,-14),to:addDays(td,-1)}],
+    ["Este mes",{from:td.slice(0,7)+"-01",to:td}],
+    ["Mes pasado",monthRange(lastM)]
+  ];
+  openDlg(`<h2>Elegir fechas</h2><div class="cal-wrap"><div class="cal-pre" id="cPre"></div><div><div class="cal-months" id="cMonths"></div></div></div>
+  <div class="note">Los días con punto verde tienen datos por día cargados${dd.size?` (último: ${esc(dLabel(lastData,true))})`:" — todavía no hay ninguno"}.</div>
+  <div class="row-end" style="align-items:center"><span class="cal-sel grow" id="cSel" style="margin-right:auto"></span><button type="button" id="cCancel">Cancelar</button><button type="button" class="primary" id="cOk">Aplicar</button></div>`);
+  const monthHTML=(m,nav)=>{
+    const first=m+"-01",D=dim(m);let h=`<div><div class="cal-nav">${nav<=0?`<button type="button" data-nav="-1" aria-label="Mes anterior">‹</button>`:`<span class="sp"></span>`}<strong>${MES[+m.slice(5)-1]} ${m.slice(0,4)}</strong>${nav>=0?`<button type="button" data-nav="1" aria-label="Mes siguiente">›</button>`:`<span class="sp"></span>`}</div><div class="cal-grid">`;
+    h+=["lun","mar","mié","jue","vie","sáb","dom"].map(w=>`<span class="wd">${w}</span>`).join("");
+    for(let i=0;i<dow(first);i++)h+="<span></span>";
+    for(let i=1;i<=D;i++){const d=m+"-"+pad(i);const to=sel.to||sel.from;const inR=d>=sel.from&&d<=to;const end=d===sel.from||d===sel.to;
+      const c=[inR?"in":"",end?"end":"",dd.has(d)?"has":"",d===td?"today":"",d>td?"out":"",inR&&(d===sel.from||dow(d)===0||i===1)?"first":"",inR&&(d===to||dow(d)===6||i===D)?"last":""].filter(Boolean).join(" ");
+      h+=`<button type="button" data-d="${d}" class="${c}" aria-label="${esc(dLabel(d,true))}" aria-pressed="${inR}">${i}</button>`;}
+    return h+"</div></div>";
+  };
+  const draw=()=>{
+    const narrow=window.matchMedia("(max-width:640px)").matches;
+    $("cMonths").innerHTML=narrow?monthHTML(view,0):monthHTML(view,-1)+monthHTML(addMonths(view,1),1);
+    $("cPre").innerHTML=presets.map(([l,r],i)=>`<button type="button" data-p="${i}" aria-pressed="${!picking&&sel.from===r.from&&sel.to===r.to}">${esc(l)}</button>`).join("");
+    $("cSel").textContent=sel.to?rangeLabel(sel.from,sel.to):dLabel(sel.from,true)+" – elige el día final";
+    $("cOk").disabled=!sel.to&&!sel.from;
+  };
+  $("cMonths").onclick=e=>{
+    const n=e.target.closest("[data-nav]");if(n){view=addMonths(view,+n.dataset.nav);draw();return;}
+    const b=e.target.closest("[data-d]");if(!b)return;const d=b.dataset.d;
+    if(!picking){sel={from:d,to:null};picking=true;}
+    else{if(d<sel.from)sel={from:d,to:sel.from};else sel.to=d;picking=false;}
+    draw();
+  };
+  $("cPre").onclick=e=>{const b=e.target.closest("[data-p]");if(!b)return;const r=presets[+b.dataset.p][1];sel={...r};picking=false;view=r.from.slice(0,7);draw();};
+  $("cCancel").onclick=closeDlg;
+  $("cOk").onclick=()=>{closeDlg();setRange({from:sel.from,to:sel.to||sel.from});};
+  draw();
+}
 function openBudget(){
   if(!state.canWrite)return;
   const m=state.month;const b=(state.budgets[m]||{}).projects||{};
@@ -738,7 +950,7 @@ function openUpload(){
   if(!state.canWrite)return;
   const d=openDlg(`<h2>Cargar informe de Meta Ads</h2>
   <label>Proyecto<select id="uProj"><option value="auto">Detectar por nombre de campaña</option>${state.projects.map(p=>`<option value="${p.id}" ${state.proj===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></label>
-  <div class="drop" id="uDrop"><strong>Arrastra el Excel aquí</strong><span class="note">o</span><input type="file" id="uFile" accept=".xlsx,.xls,.csv"><span class="note">Exporta desde el Administrador de anuncios a nivel de conjunto de anuncios. El mes se toma de “Inicio del informe”.</span></div>
+  <div class="drop" id="uDrop"><strong>Arrastra el Excel aquí</strong><span class="note">o</span><input type="file" id="uFile" accept=".xlsx,.xls,.csv"><span class="note">Exporta desde el Administrador de anuncios a nivel de conjunto de anuncios. Para ver semanas y elegir fechas, en Desglose elige <strong>Por tiempo › Día</strong>: así puedes subir el mes completo o solo los días nuevos y se suman a lo ya cargado.</span></div>
   <div id="uPrev"></div>
   <div class="row-end"><button type="button" id="uCancel">Cancelar</button><button type="button" class="primary" id="uSave" disabled>Guardar informe</button></div>`);
   let parsed=null,fileName="";
@@ -772,7 +984,7 @@ function openUpload(){
     const sel=$("uProj").value,g={},un=[];
     for(const r of parsed.rows){
       const pid=sel==="auto"?detectProject(r.campaign):sel;
-      const start=r.repStart||new Date().toISOString().slice(0,10);
+      const start=r.day||r.repStart||new Date().toISOString().slice(0,10);
       if(!pid){un.push(r);continue;}
       const k=start.slice(0,7)+"_"+pid;(g[k]=g[k]||{month:start.slice(0,7),project:pid,rows:[]}).rows.push(r);
     }
@@ -781,7 +993,13 @@ function openUpload(){
   function preview(){
     const {g,un}=groups();
     const items=Object.entries(g);
-    $("uPrev").innerHTML=`<div class="grid-form">${items.map(([k,x])=>{const a=agg(x.rows);const exists=state.reports[k];return `<div class="msg ok"><strong>${esc(projName(x.project))} · ${esc(monthLabel(x.month))}</strong> — ${x.rows.length} conjuntos · ${money(a.spend)} · ${int(a.results)} resultados${exists?" · reemplaza el informe que ya estaba":""}</div>`;}).join("")}
+    $("uPrev").innerHTML=`<div class="grid-form">${items.map(([k,x])=>{const a=agg(x.rows);const ex=state.reports[k];const daily=x.rows.some(r=>r.day);
+      if(daily){const ds=[...new Set(x.rows.map(r=>r.day))].sort();const sets=new Set(x.rows.map(r=>r.campaign+"|"+r.adset)).size;
+        const covers=ex&&ex.repStart&&ex.repEnd&&ds[0]<=ex.repStart&&ds[ds.length-1]>=ex.repEnd;
+        const note=!ex?"":ex.daily?" · se suma a los días ya cargados (los días repetidos se reemplazan)":covers?" · reemplaza el informe sin desglose que ya estaba":"";
+        const warn=ex&&!ex.daily&&!covers?`<div class="msg warn">El informe que ya estaba (${esc(rangeLabel(ex.repStart||ds[0],ex.repEnd||ds[ds.length-1]))}) no tiene desglose por día y se reemplazará por este. Si este archivo no cubre esos días, sube el mes completo.</div>`:"";
+        return `<div class="msg ok"><strong>${esc(projName(x.project))} · ${esc(monthLabel(x.month))}</strong> — por día: ${esc(rangeLabel(ds[0],ds[ds.length-1]))} (${ds.length} días) · ${sets} conjuntos · ${money(a.spend)} · ${int(a.results)} resultados${note}</div>${warn}`;}
+      return `<div class="msg ok"><strong>${esc(projName(x.project))} · ${esc(monthLabel(x.month))}</strong> — ${x.rows.length} conjuntos · ${money(a.spend)} · ${int(a.results)} resultados${ex?" · reemplaza el informe que ya estaba":""}</div>${ex&&ex.daily?`<div class="msg warn">Este archivo no trae desglose por día: al guardarlo se pierde la vista por semanas de este mes.</div>`:`<div class="note">Sin desglose por día: podrás verlo por mes, no por semanas.</div>`}`;}).join("")}
     ${un.length?`<div class="msg warn">${un.length} filas sin proyecto (no reconocí el nombre de campaña): ${esc([...new Set(un.map(r=>r.campaign))].slice(0,4).join(", "))}. Elige el proyecto arriba para incluirlas.</div>`:""}
     <div class="note">Hoja leída: ${esc(parsed.sheet)}</div></div>`;
     $("uSave").disabled=!items.length;
@@ -789,13 +1007,26 @@ function openUpload(){
   $("uSave").onclick=async()=>{
     const {g}=groups();$("uSave").disabled=true;
     try{
-      const docs={};
-      for(const [k,x] of Object.entries(g)){
-        const starts=x.rows.map(r=>r.repStart).filter(Boolean).sort(),ends=x.rows.map(r=>r.repEnd).filter(Boolean).sort();
-        docs[k]={month:x.month,project:x.project,platform:"meta",fileName,uploadedAt:new Date().toISOString(),repStart:starts[0]||null,repEnd:ends[ends.length-1]||null,rows:x.rows};
-        state.month=x.month;
-      }
-      await saveData(d=>{d.reports=d.reports||{};Object.assign(d.reports,docs);},"Informe "+Object.keys(docs).join(", "));
+      const keys=Object.keys(g);
+      await saveData(d=>{
+        d.reports=d.reports||{};
+        for(const [k,x] of Object.entries(g)){
+          const base={month:x.month,project:x.project,platform:"meta",fileName,uploadedAt:new Date().toISOString()};
+          if(x.rows.some(r=>r.day)){
+            const prev=d.reports[k],nd=new Set(x.rows.map(r=>r.day));
+            let all=x.rows.map(slim);
+            if(prev&&prev.daily)all=prev.daily.filter(r=>!nd.has(r.day)).concat(all);
+            all.sort((p,q)=>p.day.localeCompare(q.day)||p.campaign.localeCompare(q.campaign)||p.adset.localeCompare(q.adset));
+            fixKinds(all);
+            d.reports[k]={...base,repStart:all[0].day,repEnd:all[all.length-1].day,rows:rollup(all),daily:all};
+          }else{
+            const starts=x.rows.map(r=>r.repStart).filter(Boolean).sort(),ends=x.rows.map(r=>r.repEnd).filter(Boolean).sort();
+            d.reports[k]={...base,repStart:starts[0]||null,repEnd:ends[ends.length-1]||null,rows:x.rows};
+          }
+          state.month=x.month;
+        }
+      },"Informe "+keys.join(", "));
+      state.range=null;
       if($("uProj").value!=="auto")state.proj=$("uProj").value;
       closeDlg();render();
     }catch(e){$("uSave").disabled=false;$("uPrev").insertAdjacentHTML("beforeend",`<div class="msg bad">No se pudo guardar (${esc(e.code||e.message)}).</div>`);}
