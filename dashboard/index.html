@@ -983,7 +983,8 @@ function openUpload(){
   function groups(){
     const sel=$("uProj").value,g={},un=[];
     for(const r of parsed.rows){
-      const pid=sel==="auto"?detectProject(r.campaign):sel;
+      const det=detectProject(r.campaign);
+      const pid=sel==="auto"?det:(det&&det!==sel?det:sel);
       const start=r.day||r.repStart||new Date().toISOString().slice(0,10);
       if(!pid){un.push(r);continue;}
       const k=start.slice(0,7)+"_"+pid;(g[k]=g[k]||{month:start.slice(0,7),project:pid,rows:[]}).rows.push(r);
@@ -1000,12 +1001,13 @@ function openUpload(){
         const warn=ex&&!ex.daily&&!covers?`<div class="msg warn">El informe que ya estaba (${esc(rangeLabel(ex.repStart||ds[0],ex.repEnd||ds[ds.length-1]))}) no tiene desglose por día y se reemplazará por este. Si este archivo no cubre esos días, sube el mes completo.</div>`:"";
         return `<div class="msg ok"><strong>${esc(projName(x.project))} · ${esc(monthLabel(x.month))}</strong> — por día: ${esc(rangeLabel(ds[0],ds[ds.length-1]))} (${ds.length} días) · ${sets} conjuntos · ${money(a.spend)} · ${int(a.results)} resultados${note}</div>${warn}`;}
       return `<div class="msg ok"><strong>${esc(projName(x.project))} · ${esc(monthLabel(x.month))}</strong> — ${x.rows.length} conjuntos · ${money(a.spend)} · ${int(a.results)} resultados${ex?" · reemplaza el informe que ya estaba":""}</div>${ex&&ex.daily?`<div class="msg warn">Este archivo no trae desglose por día: al guardarlo se pierde la vista por semanas de este mes.</div>`:`<div class="note">Sin desglose por día: podrás verlo por mes, no por semanas.</div>`}`;}).join("")}
+    ${$("uProj").value!=="auto"&&items.some(([k,x])=>x.project!==$("uProj").value)?`<div class="msg warn">El archivo trae campañas de otros proyectos: cada una se guarda en su proyecto, no en ${esc(projName($("uProj").value))}.</div>`:""}
     ${un.length?`<div class="msg warn">${un.length} filas sin proyecto (no reconocí el nombre de campaña): ${esc([...new Set(un.map(r=>r.campaign))].slice(0,4).join(", "))}. Elige el proyecto arriba para incluirlas.</div>`:""}
     <div class="note">Hoja leída: ${esc(parsed.sheet)}</div></div>`;
     $("uSave").disabled=!items.length;
   }
   $("uSave").onclick=async()=>{
-    const {g}=groups();$("uSave").disabled=true;
+    const {g}=groups();$("uSave").disabled=true;$("uSave").textContent="Guardando…";
     try{
       const keys=Object.keys(g);
       await saveData(d=>{
@@ -1029,7 +1031,7 @@ function openUpload(){
       state.range=null;
       if($("uProj").value!=="auto")state.proj=$("uProj").value;
       closeDlg();render();
-    }catch(e){$("uSave").disabled=false;$("uPrev").insertAdjacentHTML("beforeend",`<div class="msg bad">No se pudo guardar (${esc(e.code||e.message)}).</div>`);}
+    }catch(e){$("uSave").disabled=false;$("uSave").textContent="Guardar informe";$("uPrev").insertAdjacentHTML("beforeend",`<div class="msg bad">No se pudo guardar (${esc(e.code||e.message)}).</div>`);}
   };
 }
 
